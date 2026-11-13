@@ -1,0 +1,15 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "qxzjvkw"
+  ],
+  "locality": null,
+  "fuzzy": true,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(qxzjvkw~)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-13T09:34:42+00:00",
+ "response_seconds": 1.017,
+ "body": "company,name,locality\r\n"
+}

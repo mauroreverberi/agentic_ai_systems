@@ -1,0 +1,16 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "meier",
+   "peter"
+  ],
+  "locality": null,
+  "fuzzy": false,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(peter AND meier)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-13T09:34:09+00:00",
+ "response_seconds": 1.012,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/586855,Peter Meier,Churwalden\r\nhttps://register.ld.admin.ch/zefix/company/641452,Peter Meier,Schwarzhäusern\r\nhttps://register.ld.admin.ch/zefix/company/560316,Spezialfahrzeugbau Peter Meier,Oberägeri\r\nhttps://register.ld.admin.ch/zefix/company/680420,Schreinerei Peter Meier,Aarburg\r\nhttps://register.ld.admin.ch/zefix/company/697335,Carrosserie Peter Meier,Altnau\r\nhttps://register.ld.admin.ch/zefix/company/1005358,Modellautos4you Peter Meier,Dürrenäsch\r\nhttps://register.ld.admin.ch/zefix/company/1142315,Peter Meier Immobilien,Dübendorf\r\nhttps://register.ld.admin.ch/zefix/company/368283,Peter Meier Ingenieuring AG,Interlaken\r\nhttps://register.ld.admin.ch/zefix/company/398259,Rhy Soft Peter Meier,Sevelen\r\nhttps://register.ld.admin.ch/zefix/company/749669,Peter Meier Fördertechnik + Industrieautomation,Breitenbach\r\nhttps://register.ld.admin.ch/zefix/company/776436,Peter Meier Orgelbau GmbH,Rheinfelden\r\nhttps://register.ld.admin.ch/zefix/company/911927,Meier Peter Hauswartung GmbH,Wangen SZ\r\nhttps://register.ld.admin.ch/zefix/company/1204460,Peter Meier Gartenbau AG,Rapperswil SG\r\nhttps://register.ld.admin.ch/zefix/company/1584156,\"Peter Meier, Inh. de Boitte\",Zürich\r\nhttps://register.ld.admin.ch/zefix/company/996738,\"Berggasthaus Rigi-Scheidegg, Peter Meier\",Goldau\r\nhttps://register.ld.admin.ch/zefix/company/1264601,hp exakt Meier Hans-Peter,Oberwil-Lieli\r\nhttps://register.ld.admin.ch/zefix/company/233190,\"Peter Sandmeier-Meier, AC Elektromontagen\",Wängi\r\nhttps://register.ld.admin.ch/zefix/company/1473730,Applied Personal Science Dr. Peter Meier,Zürich\r\n"
+}

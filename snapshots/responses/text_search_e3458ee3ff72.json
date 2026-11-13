@@ -1,0 +1,15 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "holding"
+  ],
+  "locality": null,
+  "fuzzy": false,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(holding)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-13T09:34:43+00:00",
+ "response_seconds": 0.983,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/708613,AMS Holding SA,Genève\r\nhttps://register.ld.admin.ch/zefix/company/1285580,Sothis Holding SA,Lugano\r\nhttps://register.ld.admin.ch/zefix/company/1286085,Copernicus Holding SA,Lugano\r\nhttps://register.ld.admin.ch/zefix/company/1030758,Obaco Holding AG,Ruswil\r\nhttps://register.ld.admin.ch/zefix/company/1145840,FRH Holding Sàrl,Porrentruy\r\nhttps://register.ld.admin.ch/zefix/company/631044,Adminex Holding AG,Brig\r\nhttps://register.ld.admin.ch/zefix/company/670920,MFB Holding AG,Berikon\r\nhttps://register.ld.admin.ch/zefix/company/746171,Reutimann Holding AG,Zug\r\nhttps://register.ld.admin.ch/zefix/company/800506,INNLOC Holding AG,Rothenburg\r\nhttps://register.ld.admin.ch/zefix/company/404531,GPB Holding AG,Erlenbach ZH\r\nhttps://register.ld.admin.ch/zefix/company/433005,Hidrostal Holding AG,Neunkirch\r\nhttps://register.ld.admin.ch/zefix/company/439436,Sensirion Holding AG,Stäfa\r\nhttps://register.ld.admin.ch/zefix/company/899063,mgi holding ag,Zug\r\nhttps://register.ld.admin.ch/zefix/company/91186,Intershop Holding AG,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/98326,Kesco Holding AG,Dietikon\r\nhttps://register.ld.admin.ch/zefix/company/187278,Strüby Holding AG,Seewen SZ\r\nhttps://register.ld.admin.ch/zefix/company/196577,Trisa Holding AG,Triengen\r\nhttps://register.ld.admin.ch/zefix/company/1675125,Wyrsch Holding GmbH,Matzingen\r\nhttps://register.ld.admin.ch/zefix/company/1678092,Kaech Holding GmbH,Thun\r\nhttps://register.ld.admin.ch/zefix/company/1682019,Nagamany Holding GmbH,Frutigen\r\nhttps://register.ld.admin.ch/zefix/company/1687551,HQZ Holding GmbH,Weinfelden\r\nhttps://register.ld.admin.ch/zefix/company/1688060,Mandalia Holding Sagl,Paradiso\r\nhttps://register.ld.admin.ch/zefix/company/1701088,SBG Holding GmbH,Bremgarten AG\r\nhttps://register.ld.admin.ch/zefix/company/1231956,AMBV Holding SA,Morges\r\nhttps://register.ld.admin.ch/zefix/company/1233536,Prevanto Holding AG,Zürich\r\n"
+}

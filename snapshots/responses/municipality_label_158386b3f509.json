@@ -1,0 +1,10 @@
+{
+ "op": "municipality_label",
+ "params": {
+  "code": "298"
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?label (LANG(?label) AS ?lang) WHERE { GRAPH ?g { <https://ld.admin.ch/municipality/298> schema:name ?label } } LIMIT 10",
+ "retrieved_at": "2026-11-13T09:36:29+00:00",
+ "response_seconds": 1.001,
+ "body": "label,lang\r\nWiesendangen,\r\n"
+}

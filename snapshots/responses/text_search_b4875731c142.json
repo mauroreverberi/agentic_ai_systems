@@ -1,0 +1,15 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "schmid"
+  ],
+  "locality": null,
+  "fuzzy": false,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(schmid)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-13T09:34:36+00:00",
+ "response_seconds": 1.007,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/1183648,Schmid & Schmid AG,Buch b. Märwil\r\nhttps://register.ld.admin.ch/zefix/company/1774792,Schmid & Schmid Gastronomie Kollektivgesellschaft,Erlenbach im Simmental\r\nhttps://register.ld.admin.ch/zefix/company/967649,Schmid,Kirchlindach\r\nhttps://register.ld.admin.ch/zefix/company/1361515,Schmid,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/567965,Schmid,Kerns\r\nhttps://register.ld.admin.ch/zefix/company/1263705,Büro Pongratz Schmid & Schmid Rechtsanwälte,Dübendorf\r\nhttps://register.ld.admin.ch/zefix/company/600325,Schmid Bike Solutions Patrick Schmid,Muttenz\r\nhttps://register.ld.admin.ch/zefix/company/1694358,Schmid Mechanik GmbH,Hüntwangen\r\nhttps://register.ld.admin.ch/zefix/company/1660407,Schmid Ingenieure GmbH,Horgen\r\nhttps://register.ld.admin.ch/zefix/company/1552838,Schmid Invest GmbH,Interlaken\r\nhttps://register.ld.admin.ch/zefix/company/453442,Metzgerei Schmid AG,St. Gallen\r\nhttps://register.ld.admin.ch/zefix/company/163407,WERNER SCHMID AG,Riggisberg\r\nhttps://register.ld.admin.ch/zefix/company/1381663,Schmid Habermacher AG,Luzern\r\nhttps://register.ld.admin.ch/zefix/company/1383741,Schmid Legal AG,Lachen SZ\r\nhttps://register.ld.admin.ch/zefix/company/816176,Heinz Schmid,Chéserex\r\nhttps://register.ld.admin.ch/zefix/company/819698,Schmid Production,Goumoens-la-Ville\r\nhttps://register.ld.admin.ch/zefix/company/824771,Schmid (robisoft.ch),Wil SG\r\nhttps://register.ld.admin.ch/zefix/company/832246,Schmid Keramik,Finstersee\r\nhttps://register.ld.admin.ch/zefix/company/841614,Schmid Treuhand,Neuhausen am Rheinfall\r\nhttps://register.ld.admin.ch/zefix/company/843144,Ceraswiss Schmid,Niederbipp\r\nhttps://register.ld.admin.ch/zefix/company/854169,Schmid Unternehmerstiftung,Ebikon\r\nhttps://register.ld.admin.ch/zefix/company/868244,SprudelART Schmid,Ossingen\r\nhttps://register.ld.admin.ch/zefix/company/878927,\"SYMPADOG, SCHMID\",La Heutte\r\nhttps://register.ld.admin.ch/zefix/company/884446,Schmid Reisen,Oberbüren\r\nhttps://register.ld.admin.ch/zefix/company/906396,Schmid GreenTown,Dübendorf\r\n"
+}

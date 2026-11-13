@@ -1,0 +1,16 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "müller",
+   "schreinerei"
+  ],
+  "locality": null,
+  "fuzzy": false,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(schreinerei AND müller)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-13T09:34:27+00:00",
+ "response_seconds": 1.012,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/570202,Schreinerei Müller,Wigoltingen\r\nhttps://register.ld.admin.ch/zefix/company/1477208,Müller-Müller Schreinerei GmbH,Staffelbach\r\nhttps://register.ld.admin.ch/zefix/company/731181,Andreas Müller Schreinerei,Zweisimmen\r\nhttps://register.ld.admin.ch/zefix/company/166516,Müller Schreinerei AG,Mettmenstetten\r\nhttps://register.ld.admin.ch/zefix/company/398348,J. Müller Schreinerei GmbH,Bonstetten\r\nhttps://register.ld.admin.ch/zefix/company/525452,Schreinerei Müller & Stauffer AG,Teufenthal AG\r\nhttps://register.ld.admin.ch/zefix/company/660312,\"Thomas Müller, Schreinerei - Innenausbau\",Uezwil\r\nhttps://register.ld.admin.ch/zefix/company/1106886,Müller & Partner Schreinerei AG,Zollikon\r\nhttps://register.ld.admin.ch/zefix/company/123524,BM - Schreinerei Müller AG,Winterthur\r\nhttps://register.ld.admin.ch/zefix/company/123843,Müller Holzbau & Schreinerei AG,Walchwil\r\nhttps://register.ld.admin.ch/zefix/company/1436892,\"hp. müller ag, schreinerei\",St. Gallen\r\nhttps://register.ld.admin.ch/zefix/company/1158250,\"Peter Müller GmbH, Schreinerei & Küchenbau\",Wegenstetten\r\nhttps://register.ld.admin.ch/zefix/company/1421294,Gyger Schreinerei Inhaber Paul Müller,Adelboden\r\nhttps://register.ld.admin.ch/zefix/company/936385,André Müller Schreinerei und Innenausbau GmbH,Rechthalten\r\n"
+}

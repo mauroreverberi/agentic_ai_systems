@@ -1,0 +1,15 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "nestlé"
+  ],
+  "locality": null,
+  "fuzzy": false,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(nestlé)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-13T09:34:13+00:00",
+ "response_seconds": 1.027,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/126288,Nestlé S.A.,Vevey\r\nhttps://register.ld.admin.ch/zefix/company/126286,Nestlé AG,Cham\r\nhttps://register.ld.admin.ch/zefix/company/390344,Nestlé Suisse S.A.,Vevey\r\nhttps://register.ld.admin.ch/zefix/company/179860,Société des Produits Nestlé S.A.,Vevey\r\nhttps://register.ld.admin.ch/zefix/company/363325,Nestlé Nespresso SA,Vevey\r\nhttps://register.ld.admin.ch/zefix/company/446121,Nestlé Ventures SA,Vevey\r\nhttps://register.ld.admin.ch/zefix/company/181943,Nestlé Waters (Suisse) SA,Henniez\r\nhttps://register.ld.admin.ch/zefix/company/1386058,Lactalis Nestlé Brands AG,Zug\r\nhttps://register.ld.admin.ch/zefix/company/1712416,Nestlé Nespresso Manufacturing SA,Vevey\r\nhttps://register.ld.admin.ch/zefix/company/447194,Nestlé Enterprises SA,Vevey\r\nhttps://register.ld.admin.ch/zefix/company/992204,Institut Nestlé Nutrition,Vevey\r\nhttps://register.ld.admin.ch/zefix/company/179228,Société pour l'exportation des Produits Nestlé S.A.,La Tour-de-Peilz\r\nhttps://register.ld.admin.ch/zefix/company/796622,Nestlé Operational Services Worldwide SA,Vevey\r\nhttps://register.ld.admin.ch/zefix/company/1530094,Nestlé Orange Holdings GmbH,Cham\r\nhttps://register.ld.admin.ch/zefix/company/249944,Nestlé Capital Markets SA,Vevey\r\nhttps://register.ld.admin.ch/zefix/company/839671,Lactalis Nestlé Frischprodukte Schweiz AG,Zug\r\nhttps://register.ld.admin.ch/zefix/company/284237,Fonds de Pensions Complémentaire Nestlé (Fondation Louis Dapples),Vevey\r\nhttps://register.ld.admin.ch/zefix/company/284234,Fondation Nestlé pour l'étude des problèmes de l'alimentation dans le monde,Lausanne\r\n"
+}

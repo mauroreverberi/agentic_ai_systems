@@ -1,0 +1,16 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "bäckerei",
+   "meier"
+  ],
+  "locality": null,
+  "fuzzy": false,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(bäckerei AND meier)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-13T09:34:28+00:00",
+ "response_seconds": 0.999,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/1594098,Bäckerei Meier AG,Wiesendangen\r\nhttps://register.ld.admin.ch/zefix/company/1240534,Meier Bäckerei Confiserie AG,Mägenwil\r\nhttps://register.ld.admin.ch/zefix/company/1359640,Bäckerei Konditorei Café Meier,Basel\r\n"
+}

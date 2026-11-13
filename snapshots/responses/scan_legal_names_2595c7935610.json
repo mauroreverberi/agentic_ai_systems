@@ -1,0 +1,11 @@
+{
+ "op": "scan_legal_names",
+ "params": {
+  "fragment": "migros bank",
+  "locality": null
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE { GRAPH <https://lindas.admin.ch/foj/zefix> {\n  ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ; schema:address ?a . ?a schema:addressLocality ?locality .\n  FILTER(CONTAINS(LCASE(?name), \"migros bank\"))\n} } LIMIT 25",
+ "retrieved_at": "2026-11-13T09:36:00+00:00",
+ "response_seconds": 5.192,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/119271,Migros Bank AG,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/282768,Freizügigkeitsstiftung der Migros Bank,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/282800,Vorsorgestiftung der Migros Bank,Zürich\r\n"
+}

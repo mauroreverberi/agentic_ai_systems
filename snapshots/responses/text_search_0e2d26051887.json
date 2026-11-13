@@ -1,0 +1,16 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "gmbh",
+   "schmid"
+  ],
+  "locality": null,
+  "fuzzy": false,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(schmid AND gmbh)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-13T09:34:35+00:00",
+ "response_seconds": 0.98,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/1337570,Schmid GmbH,Oberhofen am Thunersee\r\nhttps://register.ld.admin.ch/zefix/company/391233,Schmid + Bossard GmbH,Oberentfelden\r\nhttps://register.ld.admin.ch/zefix/company/414214,Rolf Schmid GmbH,Hünenberg\r\nhttps://register.ld.admin.ch/zefix/company/434581,Schmid Agrotech GmbH,Märwil\r\nhttps://register.ld.admin.ch/zefix/company/458422,HANNES SCHMID GmbH,Dübendorf\r\nhttps://register.ld.admin.ch/zefix/company/509840,Oestreich & Schmid GmbH,St. Gallen\r\nhttps://register.ld.admin.ch/zefix/company/514900,Schmid Landschaften GmbH,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/1617142,Holz Schmid GmbH,Pfäffikon ZH\r\nhttps://register.ld.admin.ch/zefix/company/1621916,Benjamin Schmid GmbH,Degersheim\r\nhttps://register.ld.admin.ch/zefix/company/1631073,Altholz Schmid GmbH,Lüchingen\r\nhttps://register.ld.admin.ch/zefix/company/1652707,Schmid Brandschutzplanung GmbH,Oberembrach\r\nhttps://register.ld.admin.ch/zefix/company/1664093,Schmid Holzprodukte GmbH,Ebnet\r\nhttps://register.ld.admin.ch/zefix/company/1534371,Schmid & Kälin GmbH,Aarau\r\nhttps://register.ld.admin.ch/zefix/company/1544289,Gartenwerk Schmid GmbH,Schenkon\r\nhttps://register.ld.admin.ch/zefix/company/1552432,Schmid Flims GmbH,Flims Dorf\r\nhttps://register.ld.admin.ch/zefix/company/1586678,Schmid AgriVia GmbH,Gipf-Oberfrick\r\nhttps://register.ld.admin.ch/zefix/company/1592644,Jan Schmid GmbH,St. Gallen\r\nhttps://register.ld.admin.ch/zefix/company/1593841,Schmid Maler GmbH,Endingen\r\nhttps://register.ld.admin.ch/zefix/company/1684464,Schmid Digital GmbH,Weiach\r\nhttps://register.ld.admin.ch/zefix/company/1685260,Schmid Keramik GmbH,Thun\r\nhttps://register.ld.admin.ch/zefix/company/1688827,Schmid Seniorendienste GmbH,Liestal\r\nhttps://register.ld.admin.ch/zefix/company/1704108,Schmid Autom GmbH,Jona\r\nhttps://register.ld.admin.ch/zefix/company/1738476,Schmid Infraplan GmbH,Siebnen\r\nhttps://register.ld.admin.ch/zefix/company/1472461,Schmid Bauabdichtungen GmbH,Bronschhofen\r\nhttps://register.ld.admin.ch/zefix/company/1476124,Schmid Bauplanung GmbH,Davos Dorf\r\n"
+}

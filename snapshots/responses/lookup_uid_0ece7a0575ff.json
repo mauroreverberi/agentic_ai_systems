@@ -1,0 +1,10 @@
+{
+ "op": "lookup_uid",
+ "params": {
+  "uid": "CHE105909036"
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE { GRAPH <https://lindas.admin.ch/foj/zefix> {\n  ?id schema:name \"CompanyUID\" ; schema:value \"CHE105909036\" .\n  ?company schema:identifier ?id ; schema:legalName ?name ; schema:address ?a . ?a schema:addressLocality ?locality\n} } LIMIT 5",
+ "retrieved_at": "2026-11-13T09:36:02+00:00",
+ "response_seconds": 0.984,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/126286,Nestlé AG,Cham\r\nhttps://register.ld.admin.ch/zefix/company/126288,Nestlé S.A.,Vevey\r\n"
+}

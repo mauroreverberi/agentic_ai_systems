@@ -1,0 +1,10 @@
+{
+ "op": "exact_name",
+ "params": {
+  "name": "Migros Bank"
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE { GRAPH <https://lindas.admin.ch/foj/zefix> {\n  ?company schema:legalName \"Migros Bank\" ; schema:legalName ?name ;\n           schema:address ?a . ?a schema:addressLocality ?locality } } LIMIT 25",
+ "retrieved_at": "2026-11-13T09:34:06+00:00",
+ "response_seconds": 0.993,
+ "body": "company,name,locality\r\n"
+}

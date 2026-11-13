@@ -1,0 +1,11 @@
+{
+ "op": "scan_legal_names",
+ "params": {
+  "fragment": "mueller holzbau",
+  "locality": null
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE { GRAPH <https://lindas.admin.ch/foj/zefix> {\n  ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ; schema:address ?a . ?a schema:addressLocality ?locality .\n  FILTER(CONTAINS(LCASE(?name), \"mueller holzbau\"))\n} } LIMIT 25",
+ "retrieved_at": "2026-11-13T09:35:21+00:00",
+ "response_seconds": 5.675,
+ "body": "company,name,locality\r\n"
+}

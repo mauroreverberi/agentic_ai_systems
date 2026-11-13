@@ -1,0 +1,16 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "garage",
+   "müller"
+  ],
+  "locality": null,
+  "fuzzy": false,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(garage AND müller)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-13T09:34:18+00:00",
+ "response_seconds": 0.995,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/1541422,Garage Müller,Obfelden\r\nhttps://register.ld.admin.ch/zefix/company/1151594,Garage Müller,Schlattingen\r\nhttps://register.ld.admin.ch/zefix/company/551153,Garage Rolf Müller,Unterengstringen\r\nhttps://register.ld.admin.ch/zefix/company/1547832,Samu Garage Müller,Ganterschwil\r\nhttps://register.ld.admin.ch/zefix/company/675256,\"Royal Garage, Müller\",Basel\r\nhttps://register.ld.admin.ch/zefix/company/793440,Garage Müller Marc,Matten St\r\nhttps://register.ld.admin.ch/zefix/company/1046722,Garage Müller M.,L'Isle\r\nhttps://register.ld.admin.ch/zefix/company/1049273,Garage Dominik Müller,Mühlau\r\nhttps://register.ld.admin.ch/zefix/company/527227,Garage D. Müller AG,Pfyn\r\nhttps://register.ld.admin.ch/zefix/company/551982,Hirschen Garage Stefan Müller,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/1689334,Garage Martin Müller AG,Niederurnen\r\nhttps://register.ld.admin.ch/zefix/company/1447534,Garage Ciardelli Müller GmbH,Burgistein\r\nhttps://register.ld.admin.ch/zefix/company/841331,Müller Grynau-Garage AG,Uznach\r\nhttps://register.ld.admin.ch/zefix/company/926887,Garage Jakob Müller GmbH,Etzgen\r\nhttps://register.ld.admin.ch/zefix/company/930862,Garage Müller & Morf AG,Effretikon\r\nhttps://register.ld.admin.ch/zefix/company/950273,Garage Müller AG Wolhusen,Wolhusen\r\nhttps://register.ld.admin.ch/zefix/company/954862,Graf & Müller Garage GmbH,Wallenwil\r\nhttps://register.ld.admin.ch/zefix/company/1055593,garage p. müller gmbh,Felben-Wellhausen\r\nhttps://register.ld.admin.ch/zefix/company/1099290,Garage Müller AG Herznach,Herznach\r\nhttps://register.ld.admin.ch/zefix/company/1131161,Garage Müller GmbH Wittnau,Wittnau\r\nhttps://register.ld.admin.ch/zefix/company/1269323,Garage Daniel Müller AG,Dättwil AG\r\nhttps://register.ld.admin.ch/zefix/company/1142459,Camenzind & Müller Garage GmbH,Horgen\r\nhttps://register.ld.admin.ch/zefix/company/1243173,Sport Garage Müller GmbH,Seewen SZ\r\nhttps://register.ld.admin.ch/zefix/company/123491,\"Garage Müller AG, Erlenbach\",Erlenbach im Simmental\r\nhttps://register.ld.admin.ch/zefix/company/123847,Transit-Garage Müller AG,Goldau\r\n"
+}

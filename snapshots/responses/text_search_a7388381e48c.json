@@ -1,0 +1,16 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "ag",
+   "keller"
+  ],
+  "locality": null,
+  "fuzzy": false,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(keller AND ag)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-13T09:34:17+00:00",
+ "response_seconds": 0.965,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/1535451,KELLER & KELLER Holding AG,Winterthur\r\nhttps://register.ld.admin.ch/zefix/company/97692,Keller AG,Basel\r\nhttps://register.ld.admin.ch/zefix/company/97762,Keller Emballages SA,Vionnaz\r\nhttps://register.ld.admin.ch/zefix/company/323433,Keller Treppenbau AG,Urtenen-Schönbühl\r\nhttps://register.ld.admin.ch/zefix/company/337051,Keller Properties AG,Pfungen\r\nhttps://register.ld.admin.ch/zefix/company/351042,Keller Ingenieure AG,Schwarzenburg\r\nhttps://register.ld.admin.ch/zefix/company/357478,Storchenbäckerei Keller AG,Bern\r\nhttps://register.ld.admin.ch/zefix/company/361434,Keller Laser AG,Trimmis\r\nhttps://register.ld.admin.ch/zefix/company/363263,Gustav Keller AG,Thalwil\r\nhttps://register.ld.admin.ch/zefix/company/380477,Keller Hochbau AG,Fahrweid-Weiningen\r\nhttps://register.ld.admin.ch/zefix/company/385668,Keller Züberwangen AG,Züberwangen\r\nhttps://register.ld.admin.ch/zefix/company/403269,Keller Bauunternehmung AG,Rheineck\r\nhttps://register.ld.admin.ch/zefix/company/404150,keller automobile ag,Gonten\r\nhttps://register.ld.admin.ch/zefix/company/417514,Keller + Lorenz AG,Luzern\r\nhttps://register.ld.admin.ch/zefix/company/422015,Keller Unternehmensberatung AG,Aarau\r\nhttps://register.ld.admin.ch/zefix/company/426425,Keller-Rutishauser AG,Weinfelden\r\nhttps://register.ld.admin.ch/zefix/company/428631,Keller Zargen AG,Elgg\r\nhttps://register.ld.admin.ch/zefix/company/431462,Keller Landmaschinen AG,Schwellbrunn\r\nhttps://register.ld.admin.ch/zefix/company/432057,Corrodi & Keller AG,Fehraltorf\r\nhttps://register.ld.admin.ch/zefix/company/438608,Badner Keller AG,Leukerbad\r\nhttps://register.ld.admin.ch/zefix/company/449034,Keller Gastronomie AG,Bäch SZ\r\nhttps://register.ld.admin.ch/zefix/company/460059,Café Keller AG,Flawil\r\nhttps://register.ld.admin.ch/zefix/company/468461,Keller Bauunternehmung AG,Thal\r\nhttps://register.ld.admin.ch/zefix/company/507733,Keller Treuhand AG,Pfäffikon ZH\r\nhttps://register.ld.admin.ch/zefix/company/514798,Glatthaar Keller AG,Schaffhausen\r\n"
+}
