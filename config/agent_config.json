@@ -1,0 +1,15 @@
+{
+  "register": {
+    "endpoint": "https://lindas.admin.ch/query",
+    "graph": "https://lindas.admin.ch/foj/zefix",
+    "user_agent": "udacity-capstone-project6/0.1",
+    "connect_timeout_seconds": 5,
+    "read_timeout_seconds": 20,
+    "max_attempts": 3,
+    "backoff_base_seconds": 1.0,
+    "max_retry_after_seconds": 10,
+    "min_seconds_between_requests": 1.0,
+    "result_limit": 25,
+    "lucene_candidate_limit": 2000
+  }
+}

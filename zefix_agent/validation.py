@@ -1,4 +1,4 @@
-"""Deterministic input checks and name comparison.
+"""Deterministic input checks, safe query values and name comparison.
 
 Nothing in this module calls the network, so every rule can be tested alone.
 """
@@ -9,6 +9,7 @@ from difflib import SequenceMatcher
 
 MAX_NAME_LENGTH = 200
 MAX_FIELD_LENGTH = 120
+MAX_SEARCH_WORDS = 6
 # weights of the first eight digits for the check digit of a UID (modulo 11)
 UID_WEIGHTS = (5, 4, 3, 2, 7, 6, 5, 4)
 
@@ -23,7 +24,7 @@ ASCII_FOLD = {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss", "æ": "ae", "œ": 
 
 
 class InvalidInput(ValueError):
-    """Raised when a request cannot be accepted."""
+    """Raised when a request cannot be accepted, before any register call."""
 
 
 def clean_text(value, field, max_length=MAX_FIELD_LENGTH):
@@ -84,6 +85,18 @@ def validate_request(raw):
     if request["name"] and not re.search(r"\w{2}", request["name"]):
         raise InvalidInput("name does not contain a usable word")
     return request
+
+
+def escape_sparql_literal(value):
+    """Escape backslash, quotes and line breaks for a double quoted SPARQL literal."""
+    return (value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+            .replace("\r", "\\r").replace("\t", "\\t"))
+
+
+def search_words(text):
+    """Return the plain lowercase words of a search text, with all Lucene syntax removed."""
+    words = re.findall(r"[^\W_]+", unicodedata.normalize("NFC", text).lower())
+    return words[:MAX_SEARCH_WORDS]
 
 
 def fold(text):
