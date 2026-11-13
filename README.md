@@ -3,6 +3,12 @@
 **GitHub repository:** https://github.com/mauroreverberi/agentic_ai_systems
 (all commits and the `develop` branch as well as the `main` branch are visible there)
 
+## What Was Built
+- `zefix_agent/`, the Python package of this project.
+  - `validation.py`, the input checks and the name comparison.
+- `tests/`, deterministic tests of the package.
+- `requirements.txt`, generated with `pip freeze` in the virtual environment of this project.
+
 ## How to Run the Project
 1. Clone this repository.
 2. Create and activate a virtual environment. LangGraph 1.x needs Python 3.10 or newer, I used Python 3.13.2. The general project setup page says Python 3.9 or newer, but that is not enough for LangGraph 1.x.
@@ -14,6 +20,11 @@
    ```
    pip install -r requirements.txt
    ```
+
+Run the tests:
+```
+python -m unittest discover -s tests
+```
 
 ## Dependencies
 `requirements.txt` was created inside the project's own virtual environment with:
