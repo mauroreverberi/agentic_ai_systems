@@ -6,10 +6,11 @@
 ## What Was Built
 - `zefix_agent/`, the Python package of this project.
   - `register_tool.py`, the only code that talks to the register, with prepared queries, timeouts, retries and snapshots.
+  - `verification.py`, the deterministic checks of a proposed decision.
   - `validation.py`, the input checks and the name comparison.
 - `config/agent_config.json`, the endpoint, limits and timeouts of the register tool.
 - `snapshots/responses/`, stored real register responses.
-- `tests/`, 13 deterministic tests that do not need the network.
+- `tests/`, 24 deterministic tests that do not need the network.
 - `scripts/record_snapshots.py`, the snapshot recorder.
 - `requirements.txt`, generated with `pip freeze` in the virtual environment of this project.
 

@@ -1,4 +1,4 @@
-"""Deterministic tests of validation and register tool.
+"""Deterministic tests of validation, register tool and checks.
 
 These tests do not need the network. They read stored real register responses.
 
@@ -18,6 +18,8 @@ from zefix_agent.config import load_config  # noqa: E402
 from zefix_agent.register_tool import FaultPlan, RegisterTool, SnapshotStore, build_lucene_query, clean_register_text  # noqa: E402
 from zefix_agent.validation import (InvalidInput, escape_sparql_literal, format_uid, name_score, normalize_uid,  # noqa: E402
                                     search_words, split_legal_form, validate_request)
+from zefix_agent.verification import (clean_free_text, find_contradictions, known_identifiers, remove_unknown_identifiers,  # noqa: E402
+                                      status_claims, verify_decision)
 
 
 def snapshot_register(faults=None):
@@ -63,6 +65,15 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual(name_score("Nestle S.A.", "Nestlé AG"), 1.0)
         self.assertEqual(split_legal_form("Nestlé S.A.")[1], "AG")
         self.assertEqual(split_legal_form("Zazuko GmbH")[1], "GmbH")
+
+    def test_similar_name_alone_cannot_become_a_match(self):
+        # this real pair reaches 0.867, so the score alone would let the wrong company through
+        requested, registered = "Mueller Holzbau", "Gfeller Holzbau GmbH"
+        self.assertGreater(name_score(requested, registered), 0.85)
+        record = {"company_id": "350030", "legal_name": registered, "names": [registered], "uid": "CHE108197220", "locality": "Worb"}
+        state = {"request": {"name": requested}, "records": {"350030": record}, "searches": [],
+                 "candidates": {"350030": {"company_id": "350030", "legal_name": registered, "locality": "Worb"}}}
+        self.assertEqual(verify_decision({"outcome": "MATCH", "company_id": "350030"}, state, 0.85)["outcome"], "AMBIGUOUS")
 
     def test_register_text_cleaning(self):
         self.assertEqual(clean_register_text("null\nKäsereistrasse 8"), "Käsereistrasse 8")
@@ -137,6 +148,75 @@ class RegisterToolTests(unittest.TestCase):
         register = RegisterTool(config["register"], session=Fake(), sleep=lambda s: None)
         self.assertEqual(register.exact_name("Zazuko GmbH")["error_type"], "http_400")
         self.assertEqual(Fake.calls, 1)
+
+
+class CheckTests(unittest.TestCase):
+    RECORD = {"company_id": "1", "legal_name": "Zazuko GmbH", "names": [], "uid": "CHE242294601",
+              "locality": "Biel/Bienne", "street": "Winkelstrasse 20", "postal_code": "2502", "municipality": "Biel/Bienne"}
+
+    def state(self, request, searches=None, candidates=None, records=None):
+        return {"request": request, "records": {"1": self.RECORD} if records is None else records,
+                "candidates": candidates or {"1": {"company_id": "1", "legal_name": "Zazuko GmbH", "locality": "Biel/Bienne"}},
+                "searches": searches or []}
+
+    def test_match_needs_a_fetched_record(self):
+        verdict = verify_decision({"outcome": "MATCH", "company_id": "1"}, self.state({"name": "Zazuko GmbH"}, records={}), 0.85)
+        self.assertEqual(verdict["verdict"], "rework")
+
+    def test_contradictions_block_a_match(self):
+        request = {"name": "Zazuko GmbH", "locality": "Zürich"}
+        self.assertTrue(find_contradictions(request, self.RECORD))
+        self.assertEqual(verify_decision({"outcome": "MATCH", "company_id": "1"}, self.state(request), 0.85)["outcome"], "AMBIGUOUS")
+
+    def test_legal_form_conflict_blocks_a_match(self):
+        verdict = verify_decision({"outcome": "MATCH", "company_id": "1"}, self.state({"name": "Zazuko AG"}), 0.85)
+        self.assertEqual(verdict["outcome"], "AMBIGUOUS")
+
+    def test_other_spelling_needs_confirmation(self):
+        verdict = verify_decision({"outcome": "MATCH", "company_id": "1"}, self.state({"name": "Zazukko GmbH"}), 0.85)
+        self.assertEqual(verdict["outcome"], "AMBIGUOUS")
+
+    def test_same_name_elsewhere_blocks_a_match(self):
+        candidates = {"1": {"company_id": "1", "legal_name": "Zazuko GmbH", "locality": "Biel/Bienne"},
+                      "2": {"company_id": "2", "legal_name": "Zazuko GmbH", "locality": "Bern"}}
+        verdict = verify_decision({"outcome": "MATCH", "company_id": "1"}, self.state({"name": "Zazuko GmbH"}, candidates=candidates), 0.85)
+        self.assertEqual(verdict["outcome"], "AMBIGUOUS")
+
+    def test_no_match_needs_a_scan(self):
+        searches = [{"op": "text_search", "status": "ok", "hits": 0}]
+        state = {"request": {"name": "Nothing"}, "records": {}, "candidates": {}, "searches": searches}
+        self.assertEqual(verify_decision({"outcome": "NO_MATCH"}, state, 0.85)["verdict"], "rework")
+
+    def test_failed_scan_cannot_become_no_match(self):
+        searches = [{"op": "text_search", "status": "ok", "hits": 0}, {"op": "scan_legal_names", "status": "error", "error_type": "timeout"}]
+        state = {"request": {"name": "Nothing"}, "records": {}, "candidates": {}, "searches": searches}
+        self.assertEqual(verify_decision({"outcome": "NO_MATCH"}, state, 0.85)["outcome"], "TECHNICAL_ERROR")
+
+    def test_cut_off_scan_cannot_support_no_match(self):
+        searches = [{"op": "text_search", "status": "ok", "hits": 0, "params": {"fuzzy": True}},
+                    {"op": "scan_legal_names", "status": "ok", "hits": 25, "truncated": True}]
+        state = {"request": {"name": "Bäckerei Meier GmbH"}, "records": {}, "candidates": {}, "searches": searches}
+        self.assertEqual(verify_decision({"outcome": "NO_MATCH"}, state, 0.85)["verdict"], "rework")
+
+    def test_status_statements(self):
+        self.assertTrue(status_claims("The company is active and solvent."))
+        kept, removed = clean_free_text("The UID fits. The company is solvent. The register cannot show whether it is solvent.")
+        self.assertEqual(removed, ["The company is solvent."])
+        self.assertIn("cannot show", kept)
+        # sentences from a real run that say what the data cannot show, they must stay
+        for sentence in ("The record does not establish whether it is active or solvent.",
+                         "I can\u2019t determine whether the company is currently active or solvent."):
+            self.assertEqual(clean_free_text(sentence)[1], [], sentence)
+
+    def test_unknown_identifier_is_removed_from_free_text(self):
+        known = known_identifiers({"uid": "CHE105909036"}, {"1198554": {"uid": "CHE242294601", "chid": "CH03640617915"}})
+        text = "The UID is CHE-242.294.601. The CH-ID is CH03640617915. The request said CHE105909036. Another UID is CHE-999.999.999."
+        kept, removed = remove_unknown_identifiers(text, known)
+        self.assertEqual(removed, ["Another UID is CHE-999.999.999."])
+        self.assertIn("CHE-242.294.601", kept)
+        self.assertIn("CHE105909036", kept)
+        # a postal code with a country prefix is no identifier
+        self.assertEqual(remove_unknown_identifiers("The seat is in CH-8001 Zürich.", set())[1], [])
 
 
 if __name__ == "__main__":
