@@ -1,1 +1,1 @@
-"""Identification of Swiss companies in the official Zefix register data."""
+"""Swiss company identification agent on the official Zefix register data."""

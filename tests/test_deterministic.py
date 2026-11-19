@@ -1,23 +1,31 @@
-"""Deterministic tests of validation, register tool and checks.
+"""Deterministic tests of validation, register tool, checks and graph structure.
 
-These tests do not need the network. They read stored real register responses.
+These tests need neither a key nor the network. They read stored real register responses, and they use
+a scripted test double instead of the LLM, so they say nothing about how well the real agent decides.
 
 Usage: python -m unittest discover -s tests -v
 """
 
+import os
 import pathlib
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 import requests
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+from scripted_llm import ScriptedLLM  # noqa: E402
 from zefix_agent.config import load_config  # noqa: E402
+from zefix_agent.graph import ZefixAgent, build_llm, limit_context  # noqa: E402
 from zefix_agent.register_tool import FaultPlan, RegisterTool, SnapshotStore, build_lucene_query, clean_register_text  # noqa: E402
+from zefix_agent.schemas import AGENT_TOOLS  # noqa: E402
 from zefix_agent.validation import (InvalidInput, escape_sparql_literal, format_uid, name_score, normalize_uid,  # noqa: E402
-                                    search_words, split_legal_form, validate_request)
+                                    says_unknown, search_words, split_legal_form, validate_request)
 from zefix_agent.verification import (clean_free_text, find_contradictions, known_identifiers, remove_unknown_identifiers,  # noqa: E402
                                       status_claims, verify_decision)
 
@@ -27,6 +35,14 @@ def snapshot_register(faults=None):
     config = load_config()
     config["register"]["mode"] = "snapshot"
     return RegisterTool(config["register"], fault_plan=FaultPlan(faults), sleep=lambda seconds: None)
+
+
+def agent_with(script, faults=None):
+    """Build the real graph with the scripted test double."""
+    config = load_config()
+    config["register"]["mode"] = "snapshot"
+    llm = ScriptedLLM(script)
+    return ZefixAgent(llm, snapshot_register(faults), config), llm
 
 
 class ValidationTests(unittest.TestCase):
@@ -74,6 +90,12 @@ class ValidationTests(unittest.TestCase):
         state = {"request": {"name": requested}, "records": {"350030": record}, "searches": [],
                  "candidates": {"350030": {"company_id": "350030", "legal_name": registered, "locality": "Worb"}}}
         self.assertEqual(verify_decision({"outcome": "MATCH", "company_id": "350030"}, state, 0.85)["outcome"], "AMBIGUOUS")
+
+    def test_unknown_answers(self):
+        for text in ("I do not know", "i don't know.", "keine Ahnung", "weiss nicht", "Ich weiß es nicht", "je ne sais pas", "no idea"):
+            self.assertTrue(says_unknown(text), text)
+        for text in ("The one in Obfelden", "Churwalden", "I do not know the street, but it is in Bern"):
+            self.assertFalse(says_unknown(text), text)
 
     def test_register_text_cleaning(self):
         self.assertEqual(clean_register_text("null\nKäsereistrasse 8"), "Käsereistrasse 8")
@@ -217,6 +239,168 @@ class CheckTests(unittest.TestCase):
         self.assertIn("CHE105909036", kept)
         # a postal code with a country prefix is no identifier
         self.assertEqual(remove_unknown_identifiers("The seat is in CH-8001 Zürich.", set())[1], [])
+
+
+class GraphTests(unittest.TestCase):
+    def test_invalid_input_ends_without_llm_or_register(self):
+        agent, llm = agent_with([])
+        turn = agent.identify({"uid": "CHE-242.294.602"}, "t1")
+        self.assertEqual(turn["result"]["outcome"], "INVALID_INPUT")
+        self.assertEqual(llm.seen_contexts, [])
+
+    def test_match_path(self):
+        agent, _ = agent_with([
+            ("exact_name", {"name": "Zazuko GmbH"}),
+            ("get_company_records", {"company_ids": ["1198554"]}),
+            ("submit_decision", {"outcome": "MATCH", "company_id": "1198554", "rationale": "One entry fits."}),
+        ])
+        result = agent.identify({"name": "Zazuko GmbH"}, "t2")["result"]
+        self.assertEqual(result["outcome"], "MATCH")
+        self.assertEqual(result["company"]["uid"], "CHE242294601")
+        self.assertTrue(result["evidence"][0]["source"].startswith("snapshot:"))
+
+    def test_invented_identifier_never_reaches_the_result(self):
+        agent, _ = agent_with([
+            ("get_company_records", {"company_ids": ["1198554"]}),
+            ("submit_decision", {"outcome": "MATCH", "company_id": "1198554", "uid": "CHE999999999",
+                                 "rationale": "Fits. The UID is CHE-999.999.999.",
+                                 "answer_to_user": "The UID is CHE242294601.", "uncertainties": ["CH99999999999 could be meant."]}),
+        ])
+        result = agent.identify({"name": "Zazuko GmbH"}, "t3")["result"]
+        self.assertEqual(result["company"]["uid"], "CHE242294601")
+        # the free text may repeat the identifier of the fetched record, but no other one
+        self.assertEqual(result["rationale"], "Fits.")
+        self.assertEqual(result["answer_to_user"], "The UID is CHE242294601.")
+        self.assertEqual(result["removed_identifiers"], ["The UID is CHE-999.999.999.", "CH99999999999 could be meant."])
+        self.assertNotIn("CH99999999999 could be meant.", result["uncertainties"])
+
+    def test_clarification_keeps_the_state_and_resumes(self):
+        agent, _ = agent_with([
+            ("exact_name", {"name": "Peter Meier"}),
+            ("submit_decision", {"outcome": "AMBIGUOUS", "candidate_ids": ["586855", "641452"], "rationale": "Two entries.",
+                                 "clarification_question": "In which place?"}),
+            ("update_request", {"field": "locality", "value": "Churwalden"}),
+            ("get_company_records", {"company_ids": ["586855"]}),
+            ("submit_decision", {"outcome": "MATCH", "company_id": "586855", "rationale": "The place separates them."}),
+        ])
+        turn = agent.identify({"name": "Peter Meier"}, "t4")
+        self.assertEqual(turn["status"], "needs_input")
+        self.assertEqual(len(turn["question"]["candidates"]), 2)
+        self.assertEqual(len(agent.state("t4")["candidates"]), 2)
+        turn = agent.answer("The one in Churwalden please", "t4")
+        self.assertEqual(turn["result"]["outcome"], "MATCH")
+        self.assertEqual(turn["result"]["company"]["company_id"], "586855")
+        self.assertEqual(turn["result"]["request"]["locality"], "Churwalden")
+
+    def test_user_detail_must_come_from_the_user(self):
+        agent, _ = agent_with([
+            ("exact_name", {"name": "Peter Meier"}),
+            ("submit_decision", {"outcome": "AMBIGUOUS", "candidate_ids": ["586855", "641452"], "rationale": "Two.", "clarification_question": "Where?"}),
+            ("update_request", {"field": "locality", "value": "Churwalden"}),
+            ("submit_decision", {"outcome": "AMBIGUOUS", "candidate_ids": ["586855", "641452"], "rationale": "Still two."}),
+        ])
+        agent.identify({"name": "Peter Meier"}, "t5")
+        result = agent.answer("I do not know", "t5")["result"]
+        self.assertEqual(result["outcome"], "AMBIGUOUS")
+        self.assertIsNone(result["request"].get("locality"))
+
+    def test_unknown_answer_cannot_change_the_request(self):
+        agent, _ = agent_with([
+            ("exact_name", {"name": "Peter Meier"}),
+            ("submit_decision", {"outcome": "AMBIGUOUS", "candidate_ids": ["586855", "641452"], "rationale": "Two.", "clarification_question": "Where?"}),
+            ("update_request", {"field": "name", "value": "I do not know"}),
+            ("submit_decision", {"outcome": "AMBIGUOUS", "candidate_ids": ["586855", "641452"], "rationale": "Still two.", "clarification_question": "Where again?"}),
+        ])
+        agent.identify({"name": "Peter Meier"}, "t11")
+        turn = agent.answer("I do not know", "t11")
+        self.assertEqual(turn["status"], "done")
+        self.assertEqual(turn["result"]["request"]["name"], "Peter Meier")
+
+    def test_giving_up_needs_a_fuzzy_search(self):
+        agent, _ = agent_with([
+            ("text_search", {"words": "qxzjvkw"}),
+            ("scan_legal_names", {"fragment": "qxzjvkw"}),
+            ("submit_decision", {"outcome": "NO_MATCH", "rationale": "No hit."}),
+            ("text_search", {"words": "qxzjvkw", "fuzzy": True}),
+            ("submit_decision", {"outcome": "NO_MATCH", "rationale": "No hit after the fuzzy search."}),
+        ])
+        result = agent.identify({"name": "Qxzjvkw Consulting"}, "t12")["result"]
+        self.assertEqual(result["outcome"], "NO_MATCH")
+        self.assertEqual(result["tool_calls_used"], 3)
+
+    def test_follow_up_uses_stored_context_without_register_call(self):
+        agent, llm = agent_with([
+            ("get_company_records", {"company_ids": ["1198554"]}),
+            ("submit_decision", {"outcome": "MATCH", "company_id": "1198554", "rationale": "Fits."}),
+            ("submit_decision", {"outcome": "MATCH", "company_id": "1198554", "rationale": "From memory of this thread.",
+                                 "answer_to_user": "The company is solvent. The UID is in the record."}),
+        ])
+        agent.identify({"name": "Zazuko GmbH"}, "t6")
+        result = agent.follow_up("Is it solvent?", "t6")["result"]
+        self.assertEqual(result["tool_calls_used"], 0)
+        self.assertIsNotNone(result["retrieved_at"])
+        self.assertEqual(result["removed_statements"], ["The company is solvent."])
+        self.assertNotIn("solvent", result["answer_to_user"])
+        self.assertIn("1198554", llm.seen_contexts[-1][0].content)
+
+    def test_tool_failure_is_a_technical_error(self):
+        agent, _ = agent_with([
+            ("exact_name", {"name": "Zazuko GmbH"}),
+            ("submit_decision", {"outcome": "NO_MATCH", "rationale": "Nothing was found."}),
+        ], faults=[{"op": "*", "kind": "timeout", "times": 99}])
+        result = agent.identify({"name": "Zazuko GmbH"}, "t7")["result"]
+        self.assertEqual(result["outcome"], "TECHNICAL_ERROR")
+        self.assertIsNone(result["company"])
+
+    def test_budget_stops_the_loop(self):
+        agent, _ = agent_with([("text_search", {"words": "zazuko"})] * 8)
+        result = agent.identify({"name": "Zazuko GmbH"}, "t8")["result"]
+        self.assertEqual(result["outcome"], "TECHNICAL_ERROR")
+        self.assertEqual(result["tool_calls_used"], 8)
+
+    def test_llm_failure_is_controlled(self):
+        agent, _ = agent_with([RuntimeError("provider failed")])
+        result = agent.identify({"name": "Zazuko GmbH"}, "t9")["result"]
+        self.assertEqual(result["outcome"], "TECHNICAL_ERROR")
+        self.assertIn("llm_error", result["rationale"])
+
+    def test_verifier_sends_no_match_back_and_scan_budget_holds(self):
+        agent, _ = agent_with([
+            ("text_search", {"words": "qxzjvkw"}),
+            ("submit_decision", {"outcome": "NO_MATCH", "rationale": "No hit."}),
+            ("scan_legal_names", {"fragment": "qxzjvkw"}),
+            ("text_search", {"words": "qxzjvkw", "fuzzy": True}),
+            ("submit_decision", {"outcome": "NO_MATCH", "rationale": "No hit after the scan."}),
+        ])
+        result = agent.identify({"name": "Qxzjvkw Consulting"}, "t10")["result"]
+        self.assertEqual(result["outcome"], "NO_MATCH")
+        self.assertEqual(len(agent.state("t10")["searches"]), 3)
+
+    def test_context_limit_keeps_tool_pairs(self):
+        messages = []
+        for i in range(30):
+            messages += [HumanMessage(content="question " * 40),
+                         AIMessage(content="", tool_calls=[{"name": "x", "args": {}, "id": f"c{i}", "type": "tool_call"}]),
+                         ToolMessage(content="answer " * 40, tool_call_id=f"c{i}")]
+        trimmed = limit_context(messages, 400)
+        self.assertLess(len(trimmed), len(messages))
+        self.assertIsInstance(trimmed[0], HumanMessage)
+
+    def test_real_chat_model_accepts_the_tools_without_network(self):
+        # a placeholder value, this object is never called, the test only reads the prepared request
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "placeholder-not-a-key"}):
+            model = build_llm(load_config())
+        bound = model.bind_tools(AGENT_TOOLS, tool_choice="required", parallel_tool_calls=False)
+        # langchain_openai builds the request without sending it, so the settings can be checked offline
+        payload = bound.bound._get_request_payload([HumanMessage(content="x")], **bound.kwargs)
+        self.assertEqual(payload["model"], "gpt-6-luna")
+        self.assertFalse(bound.bound._use_responses_api(payload))
+        # OpenAI allows function calling for this model in Chat Completions only with this value
+        self.assertEqual(payload["reasoning_effort"], "none")
+        self.assertEqual(payload["temperature"], 0.0)
+        self.assertEqual(payload["tool_choice"], "required")
+        self.assertFalse(payload["parallel_tool_calls"])
+        self.assertIn("submit_decision", [t["function"]["name"] for t in payload["tools"]])
 
 
 if __name__ == "__main__":

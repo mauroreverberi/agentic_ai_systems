@@ -1,4 +1,22 @@
 {
+  "llm": {
+    "model": "gpt-6-luna",
+    "use_responses_api": false,
+    "reasoning_effort": "none",
+    "temperature": 0.0,
+    "seed": 42,
+    "request_timeout_seconds": 60,
+    "max_retries": 2
+  },
+  "agent": {
+    "max_tool_calls_per_turn": 8,
+    "max_scan_calls_per_turn": 2,
+    "max_clarifications": 2,
+    "max_verifier_reworks": 2,
+    "max_turn_seconds": 180,
+    "max_context_tokens": 6000,
+    "graph_recursion_limit": 60
+  },
   "register": {
     "endpoint": "https://lindas.admin.ch/query",
     "graph": "https://lindas.admin.ch/foj/zefix",
@@ -10,6 +28,10 @@
     "max_retry_after_seconds": 10,
     "min_seconds_between_requests": 1.0,
     "result_limit": 25,
-    "lucene_candidate_limit": 2000
+    "lucene_candidate_limit": 2000,
+    "max_records_per_call": 5
+  },
+  "verifier": {
+    "strong_name_score": 0.85
   }
 }

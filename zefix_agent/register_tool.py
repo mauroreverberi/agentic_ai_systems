@@ -1,7 +1,7 @@
 """Register tool, the only code that talks to the Zefix graph on LINDAS.
 
-A caller chooses one of the fixed operations and passes plain values. This module checks and
-escapes them before they go into a prepared query, so no caller writes SPARQL. In snapshot mode
+The LLM chooses one of the fixed operations and passes plain values. This module checks and
+escapes them before they go into a prepared query, so the LLM never writes SPARQL. In snapshot mode
 (default) the answers come only from stored real responses, live asks the endpoint, and record
 asks it only for queries without a stored response and stores the answer.
 """
@@ -425,7 +425,7 @@ class RegisterTool:
         return self._candidates("text_search", params, query)
 
     def scan_legal_names(self, fragment, locality=None):
-        """Scan all legal names for a part of a name, this is the slow way."""
+        """Scan all legal names for a part of a name, slow, so the agent has a small budget."""
         cleaned = " ".join(fragment.lower().split())
         if len(cleaned) < 3:
             raise InvalidInput("the name part for a scan needs at least 3 characters")
@@ -437,7 +437,7 @@ class RegisterTool:
         return self._candidates("scan_legal_names", params, query)
 
     def count_companies(self):
-        """Count the organizations in the Zefix graph."""
+        """Count the organizations in the Zefix graph, the agent has no tool for this."""
         fetched = self._fetch("count_companies", {}, query_count(self.config["graph"]))
         if fetched["status"] != "ok":
             outcome = dict(fetched)

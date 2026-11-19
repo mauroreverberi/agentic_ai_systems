@@ -1,6 +1,6 @@
 """Deterministic input checks, safe query values and name comparison.
 
-Nothing in this module calls the network, so every rule can be tested alone.
+Nothing in this module calls the LLM or the network, so every rule can be tested alone.
 """
 
 import re
@@ -21,6 +21,32 @@ LEGAL_FORM_WORDS = {
 }
 LEGAL_FORM_PHRASES = (("s", "a"), ("s", "a", "r", "l"), ("s", "a", "g", "l"))
 ASCII_FOLD = {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss", "æ": "ae", "œ": "oe"}
+
+
+# answers that only say the user cannot help, compared after folding, so ß is already written as ss
+ENGLISH_UNKNOWN = ["do not know", "dont know", "don t know", "have no idea", "no idea", "am not sure",
+                   "not sure", "cannot say", "unknown", "no"]
+GERMAN_UNKNOWN = ["keine ahnung", "nein", "unbekannt"]
+FRENCH_UNKNOWN = ["ne sais pas", "je ne sais pas", "je sais pas", "non"]
+
+
+def unknown_answers():
+    """Return every folded answer that only says the user cannot help."""
+    answers = set(GERMAN_UNKNOWN + FRENCH_UNKNOWN)
+    for answer in ENGLISH_UNKNOWN:
+        # "no idea", "i do not know", "sorry i do not know" and so on
+        for start in ("", "i ", "sorry ", "sorry i "):
+            answers.add(start + answer)
+    # "weiss nicht", "ich weiss es nicht", "ich kann es nicht sagen" and so on
+    for verb in ("weiss", "weiss es", "kann es"):
+        for start in ("", "ich "):
+            for middle in ("", "das "):
+                for end in ("", " sagen"):
+                    answers.add(f"{start}{verb} {middle}nicht{end}")
+    return answers
+
+
+UNKNOWN_ANSWERS = unknown_answers()
 
 
 class InvalidInput(ValueError):
@@ -85,6 +111,11 @@ def validate_request(raw):
     if request["name"] and not re.search(r"\w{2}", request["name"]):
         raise InvalidInput("name does not contain a usable word")
     return request
+
+
+def says_unknown(text):
+    """Return True for an answer that only says the user cannot help, like "keine Ahnung"."""
+    return " ".join(name_tokens(text or "")) in UNKNOWN_ANSWERS
 
 
 def escape_sparql_literal(value):

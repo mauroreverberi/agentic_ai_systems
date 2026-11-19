@@ -1,8 +1,8 @@
-"""Deterministic checks of a proposed decision.
+"""Deterministic checks of the decision the LLM proposes.
 
-A proposal names an outcome, but this code decides whether the register answers support it. A check
-accepts the outcome, asks for a missing step first (rework) or replaces the outcome with the one the
-evidence requires (override).
+The LLM may propose an outcome, but this code decides whether the register answers in the state support
+it. A check accepts the outcome, sends the LLM back for a missing step (rework) or replaces the outcome
+with the one the evidence requires (override).
 """
 
 import re
@@ -103,7 +103,7 @@ def words_contained(requested, record):
 
 
 def compare_with_request(request, record):
-    """Summarize how well one record fits the request."""
+    """Summarize how well one record fits the request, for the LLM and the logs."""
     comparison = {"name_score": None, "uid_equal": None, "locality_equal": None,
                   "contradictions": find_contradictions(request, record)}
     if request.get("name"):
@@ -155,7 +155,7 @@ def clean_free_text(text):
 
 
 def known_identifiers(request, records):
-    """Return the identifiers that free text may name, from the request and the fetched records."""
+    """Return the identifiers the LLM may repeat, from the request and the fetched records."""
     known = set()
     if records:
         for record in records.values():
@@ -214,7 +214,7 @@ def verify_match(decision, request, records, candidates, searches, strong_score)
     if not company_id:
         return _verdict("rework", "MATCH", "A MATCH needs company_id. Name the company or choose another outcome.")
     if company_id not in records:
-        return _verdict("rework", "MATCH", f"Company {company_id} has no fetched record. Fetch its record first.")
+        return _verdict("rework", "MATCH", f"Company {company_id} has no fetched record. Call get_company_records first.")
     record = records[company_id]
     contradictions = find_contradictions(request, record)
     if contradictions:
@@ -319,8 +319,8 @@ def verify_decision(decision, state, strong_score):
             return _verdict("rework", "AMBIGUOUS", "AMBIGUOUS needs seen candidates. Search first or decide NO_MATCH.")
         if fuzzy_step_missing(request, candidates, searches, strong_score):
             return _verdict("rework", "AMBIGUOUS", "No seen company fits the name. Run text_search with fuzzy=true before you decide.")
-        return _verdict("accept", "AMBIGUOUS", "The proposal names more than one possibility or a conflict.")
+        return _verdict("accept", "AMBIGUOUS", "The agent reported more than one possibility or a conflict.")
     _, failed = _searches_ok(searches)
     if not failed:
-        return _verdict("rework", "TECHNICAL_ERROR", "No register call failed, so TECHNICAL_ERROR does not fit.")
-    return _verdict("accept", "TECHNICAL_ERROR", "A register call failed.")
+        return _verdict("rework", "TECHNICAL_ERROR", "No tool call failed, so TECHNICAL_ERROR does not fit.")
+    return _verdict("accept", "TECHNICAL_ERROR", "A tool call failed.")
