@@ -1,7 +1,7 @@
 """A test double for the chat model. It replays a fixed list of tool calls.
 
 This is not an agent run and no result of it may be reported as agent behavior. It only exercises the
-graph structure, the counters and the checks without any LLM.
+graph structure, the counters and the checks without any LLM. All reported results use the real LLM.
 """
 
 from langchain_core.messages import AIMessage

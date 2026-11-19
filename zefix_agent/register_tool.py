@@ -57,7 +57,7 @@ class SnapshotMiss(Exception):
 
 
 class FaultPlan:
-    """Simulated register failures for tests, never active in a normal run."""
+    """Simulated register failures for the evaluation, never active in a normal run."""
 
     def __init__(self, faults=None):
         """Store the faults, each with op ("*" for all), kind and times (failed attempts)."""

@@ -1,0 +1,15 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "muster"
+  ],
+  "locality": null,
+  "fuzzy": false,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(muster)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-19T11:59:30+00:00",
+ "response_seconds": 0.139,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/1377484,\"Maison Muster - Roland Muster, propriétaire-encaveur\",Le Landeron\r\nhttps://register.ld.admin.ch/zefix/company/1608667,Rolf Muster,Crémines\r\nhttps://register.ld.admin.ch/zefix/company/1673490,Muster Retail,Wichtrach\r\nhttps://register.ld.admin.ch/zefix/company/1600696,Muster Vincent,Sarreyer\r\nhttps://register.ld.admin.ch/zefix/company/606131,Adrian Muster,Bremgarten bei Bern\r\nhttps://register.ld.admin.ch/zefix/company/639596,Bernhard Muster,Utzigen\r\nhttps://register.ld.admin.ch/zefix/company/885956,Patrick Muster,Moutier\r\nhttps://register.ld.admin.ch/zefix/company/1164710,Muster & Co.,Müntschemier\r\nhttps://register.ld.admin.ch/zefix/company/1181876,muster Integration,Bern\r\nhttps://register.ld.admin.ch/zefix/company/1374187,SW Muster GmbH,Oberwangen b. Bern\r\nhttps://register.ld.admin.ch/zefix/company/1582110,Hans Muster AG,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/1466531,Furrer's Wildes Muster,Obfelden\r\nhttps://register.ld.admin.ch/zefix/company/1746479,Muster Holding AG,Lyss\r\nhttps://register.ld.admin.ch/zefix/company/641659,Fritz Aebi-Muster,Lützelflüh-Goldbach\r\nhttps://register.ld.admin.ch/zefix/company/887157,Marco Muster Motorsport,Mühleberg\r\nhttps://register.ld.admin.ch/zefix/company/887786,esons Christoph Muster,Wetzikon ZH\r\nhttps://register.ld.admin.ch/zefix/company/890228,Architekturatelier Heinz Muster,Baden\r\nhttps://register.ld.admin.ch/zefix/company/935473,Johann Muster Paysagiste,Mont-sur-Lausanne\r\nhttps://register.ld.admin.ch/zefix/company/1002785,Muster Automobile GmbH,Brügg BE\r\nhttps://register.ld.admin.ch/zefix/company/1002792,Stadtmetzgerei Muster AG,Thun\r\nhttps://register.ld.admin.ch/zefix/company/1059920,Muster Fenster AG,Flamatt\r\nhttps://register.ld.admin.ch/zefix/company/1110582,Muster-Meier GmbH,Bern\r\nhttps://register.ld.admin.ch/zefix/company/97931,\"Tradulation, Regula Muster\",Zürich\r\nhttps://register.ld.admin.ch/zefix/company/163551,Muster - Schmidt GmbH,Wallisellen\r\nhttps://register.ld.admin.ch/zefix/company/1351642,Muster Bedachungen AG,Lyss\r\n"
+}

@@ -1,19 +1,15 @@
 """Store the planned register responses in snapshots/responses.
 
 It uses the register tool in record mode, so a query with a stored response is not sent again.
+A run of the agent in record mode adds the responses of the queries it chose itself.
 
-Usage: python scripts/record_snapshots.py
+Usage: python -m scripts.record_snapshots
 """
 
 import json
-import pathlib
-import sys
 
-# the package is one folder above this script
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from zefix_agent.config import load_config  # noqa: E402
-from zefix_agent.register_tool import RegisterTool  # noqa: E402
+from zefix_agent.config import load_config
+from zefix_agent.register_tool import RegisterTool
 
 # legal names for the exact lookup, some with a spelling that is not in the register
 EXACT_NAMES = [
@@ -55,11 +51,11 @@ SCANS = [
 ]
 # the second UID has a correct check digit, but no company has it
 UIDS = ["CHE242294601", "CHE000000000", "CHE105909036"]
-# company ids for the full records
+# company ids for the full records, the last two are only named in the evaluation case H5
 RECORDS = [
     "1198554", "586855", "641452", "126288", "126286", "97692", "1151594", "1541422", "1665191",
     "774070", "570202", "1594098", "462042", "528525", "119271", "12164", "350030", "661574",
-    "390344", "1337570", "1672987", "1752157", "1775150",
+    "390344", "1337570", "1672987", "1752157", "1775150", "926799", "123843",
 ]
 # fields of a record that are printed
 RECORD_FIELDS = ("legal_name", "uid", "chid", "ehraid", "legal_form", "street", "postal_code",

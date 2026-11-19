@@ -1,0 +1,15 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "migross"
+  ],
+  "locality": null,
+  "fuzzy": true,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(migross~)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-19T11:59:01+00:00",
+ "response_seconds": 0.135,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/401931,Migros Online AG,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/1149573,Migros Industrie AG,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/282767,Migros-Pensionskasse,Schlieren\r\nhttps://register.ld.admin.ch/zefix/company/119271,Migros Bank AG,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/1618642,Migros Supermarkt AG,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/119283,Migros-Genossenschafts-Bund,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/70989,Migros Beteiligungen AG,Rüschlikon\r\nhttps://register.ld.admin.ch/zefix/company/434954,Genossenschaft Migros Ostschweiz,Gossau SG\r\nhttps://register.ld.admin.ch/zefix/company/445954,Genossenschaft Migros Aare,Schönbühl Einkaufszentrum\r\nhttps://register.ld.admin.ch/zefix/company/1533660,Migros Fresh AG,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/1539293,Migros Golf AG,Dierikon\r\nhttps://register.ld.admin.ch/zefix/company/998209,Migros Vita AG,Frauenfeld\r\nhttps://register.ld.admin.ch/zefix/company/1252883,Miross Management AG,Wilen SZ\r\nhttps://register.ld.admin.ch/zefix/company/1257801,Migros Partner Orani,Puidoux\r\nhttps://register.ld.admin.ch/zefix/company/119280,Genossenschaft Migros Basel,Basel\r\nhttps://register.ld.admin.ch/zefix/company/119291,Migros Verteilbetrieb AG,Neuendorf\r\nhttps://register.ld.admin.ch/zefix/company/119293,Genossenschaft Migros Zürich,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/1688462,GiuRoss GmbH,Naters\r\nhttps://register.ld.admin.ch/zefix/company/1762042,BIGBOSS Sàrl,Genève\r\nhttps://register.ld.admin.ch/zefix/company/1250348,Migrans GmbH,Baar\r\nhttps://register.ld.admin.ch/zefix/company/1702983,Migros Marketing Romand SA,Ecublens VD\r\nhttps://register.ld.admin.ch/zefix/company/1449742,Migros Logistique Romande SA,Ecublens VD\r\nhttps://register.ld.admin.ch/zefix/company/1287765,Anlagestiftung der Migros-Pensionskasse,Schlieren\r\nhttps://register.ld.admin.ch/zefix/company/119284,Société Coopérative Migros Genève,Carouge GE\r\nhttps://register.ld.admin.ch/zefix/company/119289,Société coopérative Migros Valais,Martigny\r\n"
+}

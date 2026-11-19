@@ -1,4 +1,4 @@
-"""Deterministic tests of validation, register tool, checks and graph structure.
+"""Deterministic tests of validation, register tool, checks, graph structure and evaluation cases.
 
 These tests need neither a key nor the network. They read stored real register responses, and they use
 a scripted test double instead of the LLM, so they say nothing about how well the real agent decides.
@@ -7,8 +7,6 @@ Usage: python -m unittest discover -s tests -v
 """
 
 import os
-import pathlib
-import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -16,17 +14,15 @@ from unittest import mock
 import requests
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-
-from scripted_llm import ScriptedLLM  # noqa: E402
-from zefix_agent.config import load_config  # noqa: E402
-from zefix_agent.graph import ZefixAgent, build_llm, limit_context  # noqa: E402
-from zefix_agent.register_tool import FaultPlan, RegisterTool, SnapshotStore, build_lucene_query, clean_register_text  # noqa: E402
-from zefix_agent.schemas import AGENT_TOOLS  # noqa: E402
-from zefix_agent.validation import (InvalidInput, escape_sparql_literal, format_uid, name_score, normalize_uid,  # noqa: E402
+from scripted_llm import ScriptedLLM
+from zefix_agent.config import load_config
+from zefix_agent.evaluation import load_cases
+from zefix_agent.graph import ZefixAgent, build_llm, limit_context
+from zefix_agent.register_tool import FaultPlan, RegisterTool, SnapshotStore, build_lucene_query, clean_register_text
+from zefix_agent.schemas import AGENT_TOOLS
+from zefix_agent.validation import (InvalidInput, escape_sparql_literal, format_uid, name_score, normalize_uid,
                                     says_unknown, search_words, split_legal_form, validate_request)
-from zefix_agent.verification import (clean_free_text, find_contradictions, known_identifiers, remove_unknown_identifiers,  # noqa: E402
+from zefix_agent.verification import (clean_free_text, find_contradictions, known_identifiers, remove_unknown_identifiers,
                                       status_claims, verify_decision)
 
 
@@ -401,6 +397,24 @@ class GraphTests(unittest.TestCase):
         self.assertEqual(payload["tool_choice"], "required")
         self.assertFalse(payload["parallel_tool_calls"])
         self.assertIn("submit_decision", [t["function"]["name"] for t in payload["tools"]])
+
+
+class CaseDataTests(unittest.TestCase):
+    def test_expected_companies_have_stored_records(self):
+        register = snapshot_register()
+        cases = load_cases()
+        splits = [case["split"] for case in cases]
+        self.assertEqual(splits.count("dev"), 6)
+        self.assertEqual(splits.count("final"), 22)
+        self.assertEqual(splits.count("holdout"), 10)
+        for case in cases:
+            expected = case["expected"]
+            ids = expected.get("candidates_include", []) + expected.get("must_not_company", [])
+            if "company_id" in expected:
+                ids.append(expected["company_id"])
+            for company_id in ids:
+                record = register.company_record(company_id).get("record")
+                self.assertIsNotNone(record, f"{case['id']} {company_id}")
 
 
 if __name__ == "__main__":

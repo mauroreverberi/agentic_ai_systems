@@ -1,0 +1,10 @@
+{
+ "op": "exact_name",
+ "params": {
+  "name": "Hans Müller, Holzbau"
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE { GRAPH <https://lindas.admin.ch/foj/zefix> {\n  ?company schema:legalName \"Hans Müller, Holzbau\" ; schema:legalName ?name ;\n           schema:address ?a . ?a schema:addressLocality ?locality } } LIMIT 25",
+ "retrieved_at": "2026-11-19T12:01:43+00:00",
+ "response_seconds": 0.081,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/644986,\"Hans Müller, Holzbau\",Buchen\r\n"
+}

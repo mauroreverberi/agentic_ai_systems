@@ -1,0 +1,41 @@
+[
+ {
+  "run": "dev_run_1",
+  "started_utc": "2026-11-19T11:55:23+00:00",
+  "finished_utc": "2026-11-19T11:56:27+00:00",
+  "mode": "record",
+  "passed": 6,
+  "cases": 6,
+  "failed": "",
+  "snapshot_misses": 0,
+  "input_tokens": 61924,
+  "output_tokens": 1715,
+  "cost_usd": 0.007
+ },
+ {
+  "run": "final_run_1",
+  "started_utc": "2026-11-19T11:56:27+00:00",
+  "finished_utc": "2026-11-19T12:00:15+00:00",
+  "mode": "record",
+  "passed": 21,
+  "cases": 22,
+  "failed": "F4",
+  "snapshot_misses": 0,
+  "input_tokens": 299041,
+  "output_tokens": 8651,
+  "cost_usd": 0.0342
+ },
+ {
+  "run": "holdout_run_1",
+  "started_utc": "2026-11-19T12:00:15+00:00",
+  "finished_utc": "2026-11-19T12:01:55+00:00",
+  "mode": "record",
+  "passed": 10,
+  "cases": 10,
+  "failed": "",
+  "snapshot_misses": 0,
+  "input_tokens": 96267,
+  "output_tokens": 3096,
+  "cost_usd": 0.0112
+ }
+]
