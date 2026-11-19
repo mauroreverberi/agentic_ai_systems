@@ -22,6 +22,7 @@ This project connects to my earlier capstone projects, which all work with compa
 - `snapshots/responses/`, stored real register responses.
 - `tests/`, 39 deterministic tests that need neither a key nor the network.
 - `scripts/record_snapshots.py`, the snapshot recorder.
+- `architecture_diagram.png`, the architecture diagram.
 - `.env.example`, the template for the key and the optional endpoint.
 - `requirements.txt`, generated with `pip freeze` in the virtual environment of this project.
 
