@@ -4,7 +4,7 @@
 (all commits and the `develop` branch as well as the `main` branch are visible there)
 
 ## Project Description
-I built a single agent that identifies Swiss companies in the official Zefix data of the Swiss commercial register. The user gives a company name and optionally a place, an address or a UID. The agent chooses its search tools, compares candidates, keeps the context across questions and returns a structured result with register identifiers, evidence, the retrieval time and the remaining uncertainties.
+I built a single agent that identifies Swiss companies in the official Zefix data of the Swiss commercial register. The user gives a company name or a UID and optionally a place or an address. The agent chooses its search tools, compares candidates, keeps the context across questions and returns a structured result with register identifiers, evidence, the retrieval time and the remaining uncertainties.
 
 The agent has four main outcomes, MATCH, AMBIGUOUS, NO_MATCH and TECHNICAL_ERROR, and a fifth one, INVALID_INPUT, for input that is rejected before any search. A deterministic check verifies every decision of the LLM against what the register really returned.
 
@@ -12,6 +12,7 @@ This project connects to my earlier capstone projects, which all work with compa
 
 ## What Was Built
 - `agentic_system.ipynb`, the notebook with design, runs, evaluation and summary.
+- `module_summary.pdf`, the Agentic AI System Design Report.
 - `zefix_agent/`, the Python package of the agent. The notebook, the evaluation and the tests all use this code.
   - `graph.py`, the LangGraph StateGraph with its nodes, conditional edges and memory.
   - `register_tool.py`, the only code that talks to the register, with prepared queries, timeouts, retries and snapshots.
@@ -109,7 +110,7 @@ By default the register tool answers only from stored real responses, so the reg
 
 Every snapshot is one JSON file with the operation, the parameters, the exact SPARQL text, the retrieval time, the measured response time and the response word for word. `scripts/record_snapshots.py` stores the planned set again, and `scripts/run_evaluation.py` and the notebook add the responses of the queries the agent chose itself.
 
-Simulated failures come from a `FaultPlan` in the tests, in the evaluation cases and in Run 5 of the notebook. Each affected result carries `simulated: true`, and the notebook marks these runs.
+Simulated failures come from a `FaultPlan` in the tests, in the evaluation cases and in Run 5 of the notebook. Each affected tool result in the log carries `simulated: true`, and the notebook marks these runs.
 
 ## Reproducibility and Remaining Dependencies
 Stored register responses do not make the agent reproducible on their own. The decisions come from an LLM, so every run needs the key and the LLM endpoint. I set the temperature to 0 and send the seed 42, but this does not guarantee identical answers. The evaluation script and the notebook ran the same code a few minutes apart and agreed in all 38 outcomes and in 31 of 38 tool sequences, while the outcomes of F3, F16 and H3 changed between the three script runs. A rerun can also choose a search word that has no snapshot. In `record` mode the tool then asks the real endpoint and stores the answer, and in `snapshot` mode this shows up as a `snapshot_miss` in the results.
