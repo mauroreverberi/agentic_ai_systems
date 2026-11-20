@@ -1,7 +1,8 @@
 """A test double for the chat model. It replays a fixed list of tool calls.
 
-This is not an agent run and no result of it may be reported as agent behavior. It only exercises the
-graph structure, the counters and the checks without any LLM. All reported results use the real LLM.
+This is not an agent run and no result of it may be reported as agent behavior. It only exercises
+the graph structure, the counters and the checks without any LLM. All reported results use the real
+LLM.
 """
 
 from langchain_core.messages import AIMessage
@@ -35,4 +36,6 @@ class ScriptedLLM:
             args = dict(args)
             args.setdefault("reason", "scripted test step")
         call_id = f"call_{len(self.seen_contexts)}"
-        return AIMessage(content="", tool_calls=[{"name": name, "args": args, "id": call_id, "type": "tool_call"}])
+        return AIMessage(content="",
+                         tool_calls=[{"name": name, "args": args, "id": call_id,
+                                      "type": "tool_call"}])

@@ -1,0 +1,8 @@
+{
+ "op": "count_companies",
+ "params": {},
+ "query": "SELECT (COUNT(?company) AS ?n) WHERE { GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> } }",
+ "retrieved_at": "2026-11-19T15:38:48+00:00",
+ "response_seconds": 1.243,
+ "body": "n\r\n797449\r\n"
+}

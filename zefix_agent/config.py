@@ -20,7 +20,8 @@ VALID_MODES = ("snapshot", "live", "record")
 
 def load_config(path=CONFIG_PATH):
     """Read the settings from the JSON file and apply the environment variables."""
-    # the .env file of this project only fills environment variables, the key is never read from code
+    # the .env file of this project only fills environment variables,
+    # the key is never read from code
     load_dotenv(PROJECT_DIR / ".env")
     with open(path, encoding="utf-8") as fh:
         config = json.load(fh)

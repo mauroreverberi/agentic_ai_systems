@@ -1,0 +1,15 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "schreinerei"
+  ],
+  "locality": "bern",
+  "fuzzy": true,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(schreinerei~)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n  FILTER(CONTAINS(LCASE(?locality), \"bern\"))\n} LIMIT 25",
+ "retrieved_at": "2026-11-20T12:39:20+00:00",
+ "response_seconds": 0.269,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/1156091,Binggeli Schreinerei,Bern\r\nhttps://register.ld.admin.ch/zefix/company/1764019,Schreinerei Krapf,Bern\r\nhttps://register.ld.admin.ch/zefix/company/1167197,Berger Schreinerei GmbH,Bibern SO\r\nhttps://register.ld.admin.ch/zefix/company/1352193,vogt schreinerei gmbh,Oberwangen b. Bern\r\nhttps://register.ld.admin.ch/zefix/company/1440132,Wyttenbach Schreinerei AG,Bern\r\nhttps://register.ld.admin.ch/zefix/company/1678309,AARWOOD SCHREINEREI GMBH,Bern\r\nhttps://register.ld.admin.ch/zefix/company/825561,Schreinerei Houz GmbH,Bern\r\nhttps://register.ld.admin.ch/zefix/company/1042706,Schreinerei Geiser AG,Bern\r\nhttps://register.ld.admin.ch/zefix/company/327238,Schreinerei Bichsel AG Bern,Bern\r\nhttps://register.ld.admin.ch/zefix/company/1259500,Schreinerei Mathias Patthey GmbH,Bern\r\nhttps://register.ld.admin.ch/zefix/company/997546,A. Reist Schreinerei AG,Bern\r\nhttps://register.ld.admin.ch/zefix/company/235761,Schreinerei & Parkett Stämpfli AG,Bern\r\nhttps://register.ld.admin.ch/zefix/company/799003,Carpintero Schreinerei & Montagen GmbH,Bern\r\nhttps://register.ld.admin.ch/zefix/company/26022,Baumgartner Schreinerei AG Holz- / Innenausbau,Obernau\r\nhttps://register.ld.admin.ch/zefix/company/1130384,Remund - Schreiner,Bern\r\nhttps://register.ld.admin.ch/zefix/company/1192460,Schneiderei Azizoski + Gadouar,Bern\r\nhttps://register.ld.admin.ch/zefix/company/1231126,Schneiderei Iryna Stepanova,Bern\r\nhttps://register.ld.admin.ch/zefix/company/1234919,Umeri Schneiderei&Boutique,Bern\r\nhttps://register.ld.admin.ch/zefix/company/1266714,Ahmed Omar Schneiderei,Bern\r\nhttps://register.ld.admin.ch/zefix/company/1611724,Bären Schneiderei Nabizada,Bern\r\nhttps://register.ld.admin.ch/zefix/company/324067,A. Rückmar Schneiderei AG,Bern\r\n"
+}

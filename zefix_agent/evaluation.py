@@ -1,8 +1,8 @@
 """Evaluation of the agent on cases with expected results that were fixed before the first run.
 
-The scoring uses the three levels of the course module 003_building_agents/module_10, the final result,
-the single steps and the trajectory. I did not use Ragas, because each case here has a fixed expected
-result from the register and no retrieved text that a model would have to judge.
+The scoring uses the three levels of the course module 003_building_agents/module_10, the final
+result, the single steps and the trajectory. I did not use Ragas, because each case here has a fixed
+expected result from the register and no retrieved text that a model would have to judge.
 """
 
 import json
@@ -50,18 +50,22 @@ def score_case(case, run):
     checks = []
 
     def check(name, passed, detail):
+        """Add one named check with its result and a short detail."""
         checks.append({"name": name, "passed": bool(passed), "detail": detail})
 
     if "outcome" in expected:
-        check("outcome", outcome == expected["outcome"], f"expected {expected['outcome']}, got {outcome}")
+        check("outcome", outcome == expected["outcome"],
+              f"expected {expected['outcome']}, got {outcome}")
     if "outcome_in" in expected:
-        check("outcome_in", outcome in expected["outcome_in"], f"expected one of {expected['outcome_in']}, got {outcome}")
+        check("outcome_in", outcome in expected["outcome_in"],
+              f"expected one of {expected['outcome_in']}, got {outcome}")
     if "must_not_outcome" in expected:
         check("must_not_outcome", outcome not in expected["must_not_outcome"], f"got {outcome}")
     if "first_outcome" in expected:
         check("asked_first", run["asked"] >= 1, f"questions asked {run['asked']}")
     if "company_id" in expected:
-        check("company", company == expected["company_id"], f"expected {expected['company_id']}, got {company}")
+        check("company", company == expected["company_id"],
+              f"expected {expected['company_id']}, got {company}")
     if "must_not_company" in expected:
         check("not_wrong_company", company not in expected["must_not_company"], f"got {company}")
     if "candidates_include" in expected:
@@ -100,7 +104,8 @@ def run_case(case, llm, config, thread_prefix="eval"):
         if answers:
             answer = answers.pop(0)
         turn = agent.answer(answer, thread_id)
-    run = {"case_id": case["id"], "result": turn.get("result"), "asked": asked, "questions": questions}
+    run = {"case_id": case["id"], "result": turn.get("result"), "asked": asked,
+           "questions": questions}
     if case.get("follow_up") and turn["status"] == "done":
         run["first_result"] = turn.get("result")
         followed = agent.follow_up(case["follow_up"], thread_id)
@@ -110,7 +115,8 @@ def run_case(case, llm, config, thread_prefix="eval"):
     run["seconds"] = round(time.perf_counter() - started, 2)
     run["simulated_faults"] = bool(faults)
     searches = agent.state(thread_id).get("searches") or []
-    run["snapshot_misses"] = len([search for search in searches if search.get("error_type") == "snapshot_miss"])
+    misses = [search for search in searches if search.get("error_type") == "snapshot_miss"]
+    run["snapshot_misses"] = len(misses)
     return run
 
 

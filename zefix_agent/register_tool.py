@@ -20,7 +20,7 @@ import requests
 from .config import SNAPSHOT_DIR
 from .validation import InvalidInput, escape_sparql_literal, search_words
 
-# the retry messages go to this logger, so a caller can show or hide them
+# the notebook prints these messages with the prefix "log:"
 LOG = logging.getLogger("zefix_agent.register")
 ORG_TYPE = "https://schema.ld.admin.ch/ZefixOrganisation"
 COMPANY_BASE = "https://register.ld.admin.ch/zefix/company/"
@@ -28,7 +28,8 @@ LEGAL_FORM_BASE = "https://ld.admin.ch/ech/97/legalforms/"
 MUNICIPALITY_BASE = "https://ld.admin.ch/municipality/"
 SCHEMA = "http://schema.org/"
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
-MISS_MESSAGE = "No stored register response for this exact query. This says nothing about the register."
+MISS_MESSAGE = ("No stored register response for this exact query. "
+                "This says nothing about the register.")
 PREFIXES = """PREFIX schema: <http://schema.org/>
 PREFIX luc: <http://www.ontotext.com/connectors/lucene#>
 PREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>
@@ -161,12 +162,14 @@ def query_record(graph, company_id):
 
 def query_label(iri):
     """Return the SPARQL query for the labels of a legal form or a municipality."""
-    return PREFIXES + f"""SELECT ?label (LANG(?label) AS ?lang) WHERE {{ GRAPH ?g {{ <{iri}> schema:name ?label }} }} LIMIT 10"""
+    return PREFIXES + (f"SELECT ?label (LANG(?label) AS ?lang) WHERE {{ GRAPH ?g "
+                       f"{{ <{iri}> schema:name ?label }} }} LIMIT 10")
 
 
 def query_count(graph):
     """Return the SPARQL query that counts all organizations in the Zefix graph."""
-    return f"""SELECT (COUNT(?company) AS ?n) WHERE {{ GRAPH <{graph}> {{ ?company a <{ORG_TYPE}> }} }}"""
+    return (f"SELECT (COUNT(?company) AS ?n) WHERE {{ GRAPH <{graph}> "
+            f"{{ ?company a <{ORG_TYPE}> }} }}")
 
 
 def parse_csv(body, expected_columns):
@@ -208,7 +211,8 @@ def parse_record(company_id, rows):
     record = {
         "company_id": company_id, "company_uri": COMPANY_BASE + company_id, "legal_name": None,
         "names": [], "purpose": None, "uid": None, "chid": None, "ehraid": None, "street": None,
-        "postal_code": None, "locality": None, "canton": None, "legal_form_code": None, "municipality_id": None,
+        "postal_code": None, "locality": None, "canton": None, "legal_form_code": None,
+        "municipality_id": None,
     }
     address_fields = {SCHEMA + "streetAddress": "street", SCHEMA + "postalCode": "postal_code",
                       SCHEMA + "addressLocality": "locality", SCHEMA + "addressRegion": "canton"}
@@ -243,16 +247,18 @@ def parse_record(company_id, rows):
 
 
 class RegisterTool:
-    """Prepared queries against the Zefix graph, with timeouts, retries, rate limit and snapshots."""
+    """Prepared queries on the Zefix graph, with timeouts, retries, rate limit and snapshots."""
 
-    def __init__(self, register_config, store=None, fault_plan=None, session=None, sleep=time.sleep):
+    def __init__(self, register_config, store=None, fault_plan=None, session=None,
+                 sleep=time.sleep):
         """Set up the tool, tests replace sleep so that they do not wait."""
         self.config = register_config
         self.mode = register_config.get("mode", "snapshot")
         self.store = store or SnapshotStore()
         self.fault_plan = fault_plan or FaultPlan()
         self.session = session or requests.Session()
-        self.session.headers.update({"User-Agent": register_config["user_agent"], "Accept": "text/csv"})
+        self.session.headers.update({"User-Agent": register_config["user_agent"],
+                                     "Accept": "text/csv"})
         self.sleep = sleep
         self.memory_cache = {}
         self.last_request_at = 0.0
@@ -260,7 +266,8 @@ class RegisterTool:
 
     def _wait_for_rate_limit(self):
         """Keep a minimum time between requests to the public endpoint."""
-        pause = self.config["min_seconds_between_requests"] - (time.monotonic() - self.last_request_at)
+        waited = time.monotonic() - self.last_request_at
+        pause = self.config["min_seconds_between_requests"] - waited
         if pause > 0 and self.http_requests:
             self.sleep(pause)
         self.last_request_at = time.monotonic()
@@ -278,20 +285,23 @@ class RegisterTool:
         if fault == "connection":
             raise requests.ConnectionError("simulated connection failure")
         status_code, body, retry_after = SIMULATED_ANSWERS[fault]
-        return {"status_code": status_code, "body": body, "retry_after": retry_after, "stored": None}
+        return {"status_code": status_code, "body": body, "retry_after": retry_after,
+                "stored": None}
 
     def _send(self, op, params, query):
         """Return the stored response if there is one, otherwise ask the endpoint."""
         stored = self._stored(op, params)
         if stored:
-            return {"status_code": 200, "body": stored["body"], "retry_after": None, "stored": stored}
+            return {"status_code": 200, "body": stored["body"], "retry_after": None,
+                    "stored": stored}
         if self.mode == "snapshot":
             # a retry after a simulated failure must not reach the real endpoint
             raise SnapshotMiss()
         self._wait_for_rate_limit()
         self.http_requests += 1
         timeout = (self.config["connect_timeout_seconds"], self.config["read_timeout_seconds"])
-        response = self.session.post(self.config["endpoint"], data={"query": query}, timeout=timeout)
+        response = self.session.post(self.config["endpoint"], data={"query": query},
+                                     timeout=timeout)
         return {"status_code": response.status_code, "body": response.text,
                 "retry_after": response.headers.get("Retry-After"), "stored": None}
 
@@ -306,7 +316,8 @@ class RegisterTool:
             return cached
         stored = self._stored(op, params)
         if stored:
-            result = {"status": "ok", "body": stored["body"], "retrieved_at": stored["retrieved_at"],
+            result = {"status": "ok", "body": stored["body"],
+                      "retrieved_at": stored["retrieved_at"],
                       "source": f"snapshot:{cache_key}", "attempts": 0, "simulated": False}
             self.memory_cache[cache_key] = result
             return result
@@ -345,7 +356,8 @@ class RegisterTool:
                 error_type, message = f"http_{answer['status_code']}", answer["body"][:200]
                 if answer["status_code"] not in RETRYABLE_STATUS:
                     return error(error_type, message, attempt, simulated)
-            LOG.warning("register attempt %s of %s failed for %s: %s", attempt, max_attempts, op, error_type)
+            LOG.warning("register attempt %s of %s failed for %s: %s", attempt, max_attempts, op,
+                        error_type)
             if attempt < max_attempts:
                 self.sleep(self._backoff_seconds(attempt, retry_after))
         return error(error_type, message[:200], max_attempts, simulated)
@@ -358,8 +370,11 @@ class RegisterTool:
             source = f"snapshot:{cache_key}"
         else:
             retrieved_at = utc_now()
-            source = "simulated" if fault else "live"
-        result = {"status": "ok", "body": answer["body"], "retrieved_at": retrieved_at, "source": source,
+            source = "live"
+            if fault:
+                source = "simulated"
+        result = {"status": "ok", "body": answer["body"], "retrieved_at": retrieved_at,
+                  "source": source,
                   "attempts": attempt, "simulated": simulated, "seconds": round(seconds, 3)}
         if not fault:
             cached = dict(result)
@@ -388,7 +403,8 @@ class RegisterTool:
             if any(not row["company"].startswith(COMPANY_BASE) for row in rows):
                 raise ValueError("unexpected company address")
         except (ValueError, csv.Error) as exc:
-            outcome = error("malformed_response", str(exc), fetched["attempts"], fetched["simulated"])
+            outcome = error("malformed_response", str(exc), fetched["attempts"],
+                            fetched["simulated"])
             outcome.update(op=op, params=params, candidates=[])
             return outcome
         candidates = [{"company_id": row["company"][len(COMPANY_BASE):], "legal_name": row["name"],
@@ -405,7 +421,8 @@ class RegisterTool:
     def exact_name(self, name):
         """Find companies with exactly this legal name."""
         limit = self.config["result_limit"]
-        return self._candidates("exact_name", {"name": name}, query_exact_name(self.config["graph"], limit, name))
+        return self._candidates("exact_name", {"name": name},
+                                query_exact_name(self.config["graph"], limit, name))
 
     def text_search(self, text, locality=None, fuzzy=False, prefix=False):
         """Search the text index by words, which also finds translated names."""
@@ -446,8 +463,10 @@ class RegisterTool:
         try:
             count = int(parse_csv(fetched["body"], ["n"])[0]["n"])
         except (ValueError, IndexError, csv.Error) as exc:
-            return {"status": "error", "error_type": "malformed_response", "message": str(exc), "count": None}
-        return {"status": "ok", "count": count, "retrieved_at": fetched["retrieved_at"], "source": fetched["source"]}
+            return {"status": "error", "error_type": "malformed_response", "message": str(exc),
+                    "count": None}
+        return {"status": "ok", "count": count, "retrieved_at": fetched["retrieved_at"],
+                "source": fetched["source"]}
 
     def _label(self, kind, code, iri):
         """Read the labels of a legal form or a municipality, a missing label is no error."""
@@ -466,7 +485,8 @@ class RegisterTool:
             raise InvalidInput("company_id must contain only digits")
         company_id = str(company_id)
         params = {"company_id": company_id}
-        fetched = self._fetch("company_record", params, query_record(self.config["graph"], company_id))
+        fetched = self._fetch("company_record", params,
+                              query_record(self.config["graph"], company_id))
         if fetched["status"] != "ok":
             outcome = dict(fetched)
             outcome.update(op="company_record", params=params, record=None)
@@ -474,10 +494,12 @@ class RegisterTool:
         try:
             rows = parse_csv(fetched["body"], ["p", "o", "p2", "o2"])
         except (ValueError, csv.Error) as exc:
-            outcome = error("malformed_response", str(exc), fetched["attempts"], fetched["simulated"])
+            outcome = error("malformed_response", str(exc), fetched["attempts"],
+                            fetched["simulated"])
             outcome.update(op="company_record", params=params, record=None)
             return outcome
-        outcome = {"status": "ok", "op": "company_record", "params": params, "attempts": fetched["attempts"],
+        outcome = {"status": "ok", "op": "company_record", "params": params,
+                   "attempts": fetched["attempts"],
                    "simulated": fetched["simulated"], "record": None,
                    "retrieved_at": fetched["retrieved_at"], "source": fetched["source"]}
         if rows:
@@ -491,9 +513,11 @@ class RegisterTool:
         code = record["legal_form_code"]
         if code:
             labels = self._label("legal_form_label", code, LEGAL_FORM_BASE + code)
-            record["legal_form"] = labels.get("de") or labels.get("fr") or next(iter(labels.values()), None)
+            record["legal_form"] = (labels.get("de") or labels.get("fr")
+                                    or next(iter(labels.values()), None))
         municipality_id = record["municipality_id"]
         if municipality_id:
-            labels = self._label("municipality_label", municipality_id, MUNICIPALITY_BASE + municipality_id)
+            labels = self._label("municipality_label", municipality_id,
+                                 MUNICIPALITY_BASE + municipality_id)
             record["municipality"] = next(iter(labels.values()), None)
         return record

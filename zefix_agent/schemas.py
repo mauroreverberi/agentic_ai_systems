@@ -1,6 +1,7 @@
 """Tool arguments and the structured final result.
 
-The tool classes are what the LLM sees. Their fields are plain values, there is no field for a query text.
+The tool classes are what the LLM sees. Their fields are plain values, there is no field for a
+query text.
 """
 
 from typing import List, Literal, Optional
@@ -32,16 +33,21 @@ class TextSearch(BaseModel):
     """Search the fast text index by words, in any order. Also finds translated names. Not complete, and accents must fit."""
     model_config = ConfigDict(title="text_search")
     words: str = Field(description="Plain words of the name, no search syntax")
-    locality: Optional[str] = Field(default=None, description="Optional part of the place name, keeps only companies there")
-    fuzzy: bool = Field(default=False, description="Accept small spelling differences, this also finds wrong companies")
-    prefix: bool = Field(default=False, description="Let the last word match as the start of a word")
+    locality: Optional[str] = Field(
+        default=None, description="Optional part of the place name, keeps only companies there")
+    fuzzy: bool = Field(
+        default=False,
+        description="Accept small spelling differences, this also finds wrong companies")
+    prefix: bool = Field(
+        default=False, description="Let the last word match as the start of a word")
     reason: str = Field(description=REASON)
 
 
 class ScanLegalNames(BaseModel):
     """Read all legal names for a part of a name. Takes about 6 seconds and has a small budget. Required before NO_MATCH."""
     model_config = ConfigDict(title="scan_legal_names")
-    fragment: str = Field(description="A specific part of the name, without the legal form, at least 3 characters")
+    fragment: str = Field(
+        description="A specific part of the name, without the legal form, at least 3 characters")
     locality: Optional[str] = Field(default=None, description="Optional part of the place name")
     reason: str = Field(description=REASON)
 
@@ -66,18 +72,23 @@ class SubmitDecision(BaseModel):
     model_config = ConfigDict(title="submit_decision")
     outcome: Literal["MATCH", "AMBIGUOUS", "NO_MATCH", "TECHNICAL_ERROR"]
     company_id: Optional[str] = Field(default=None, description="The company for MATCH")
-    candidate_ids: List[str] = Field(default_factory=list, description="The candidates for AMBIGUOUS")
-    rationale: str = Field(description="Two or three plain sentences that explain the decision from the tool results")
+    candidate_ids: List[str] = Field(
+        default_factory=list, description="The candidates for AMBIGUOUS")
+    rationale: str = Field(
+        description="Two or three plain sentences that explain the decision from the tool results")
     uncertainties: List[str] = Field(default_factory=list, description="What remains unclear")
-    clarification_question: Optional[str] = Field(default=None, description="One short question to the user, only for AMBIGUOUS")
-    answer_to_user: Optional[str] = Field(default=None, description="A direct answer if the user asked a follow-up question")
+    clarification_question: Optional[str] = Field(
+        default=None, description="One short question to the user, only for AMBIGUOUS")
+    answer_to_user: Optional[str] = Field(
+        default=None, description="A direct answer if the user asked a follow-up question")
 
 
-AGENT_TOOLS = [LookupUid, ExactName, TextSearch, ScanLegalNames, GetCompanyRecords, UpdateRequest, SubmitDecision]
+AGENT_TOOLS = [LookupUid, ExactName, TextSearch, ScanLegalNames, GetCompanyRecords, UpdateRequest,
+               SubmitDecision]
 
 
 class Company(BaseModel):
-    """A company as stated in the register. All values come from the register tool, none from the LLM."""
+    """A company as stated in the register. All values come from the register tool, not the LLM."""
     company_id: str
     company_uri: str
     legal_name: Optional[str] = None

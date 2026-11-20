@@ -24,8 +24,8 @@ ASCII_FOLD = {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss", "æ": "ae", "œ": 
 
 
 # answers that only say the user cannot help, compared after folding, so ß is already written as ss
-ENGLISH_UNKNOWN = ["do not know", "dont know", "don t know", "have no idea", "no idea", "am not sure",
-                   "not sure", "cannot say", "unknown", "no"]
+ENGLISH_UNKNOWN = ["do not know", "dont know", "don t know", "have no idea", "no idea",
+                   "am not sure", "not sure", "cannot say", "unknown", "no"]
 GERMAN_UNKNOWN = ["keine ahnung", "nein", "unbekannt"]
 FRENCH_UNKNOWN = ["ne sais pas", "je ne sais pas", "je sais pas", "non"]
 
@@ -152,7 +152,9 @@ def split_legal_form(name):
         size = len(phrase)
         for i in range(len(tokens) - size + 1):
             if tuple(tokens[i:i + size]) == phrase:
-                form = "AG" if size == 2 else "GmbH"
+                form = "GmbH"
+                if size == 2:
+                    form = "AG"
                 tokens = tokens[:i] + tokens[i + size:]
                 break
         if form:

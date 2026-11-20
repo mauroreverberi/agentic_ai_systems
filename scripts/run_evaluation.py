@@ -1,7 +1,7 @@
 """Run the evaluation cases with the real LLM and store one log per split in evaluation/results.
 
-The register tool runs in record mode, so a query without a stored response is sent once and stored in
-snapshots/responses. Each split also adds one line to evaluation/run_history.json.
+The register tool runs in record mode, so a query without a stored response is sent once and stored
+in snapshots/responses. Each split also adds one line to evaluation/run_history.json.
 
 Usage: python -m scripts.run_evaluation [dev] [final] [holdout]
 """
@@ -58,19 +58,24 @@ def run_split(split, llm, config):
 
     log_rows = []
     for row in rows:
-        log_rows.append({"case_id": row["case"]["id"], "passed": row["passed"], "checks": row["checks"], "run": row["run"]})
+        log_rows.append({"case_id": row["case"]["id"], "passed": row["passed"],
+                         "checks": row["checks"], "run": row["run"]})
     log = {"started_utc": started, "finished_utc": finished, "settings": public_settings(config),
-           "mode": config["register"]["mode"], "tokens": tokens, "cost_usd_at_list_price": cost, "rows": log_rows}
+           "mode": config["register"]["mode"], "tokens": tokens, "cost_usd_at_list_price": cost,
+           "rows": log_rows}
     RESULTS_DIR.mkdir(exist_ok=True)
     path.write_text(json.dumps(log, ensure_ascii=False, indent=1), encoding="utf-8")
 
     failed = [row["case"]["id"] for row in rows if not row["passed"]]
     misses = sum(row["run"]["snapshot_misses"] for row in rows)
     print(f"{split}: passed {len(rows) - len(failed)} of {len(rows)}, snapshot misses {misses}, "
-          f"tokens {tokens['input']:,} in and {tokens['output']:,} out, ${cost:.4f}, saved {path.name}")
-    return {"run": path.stem, "started_utc": started, "finished_utc": finished, "mode": config["register"]["mode"],
+          f"tokens {tokens['input']:,} in and {tokens['output']:,} out, ${cost:.4f}, "
+          f"saved {path.name}")
+    return {"run": path.stem, "started_utc": started, "finished_utc": finished,
+            "mode": config["register"]["mode"],
             "passed": len(rows) - len(failed), "cases": len(rows), "failed": ", ".join(failed),
-            "snapshot_misses": misses, "input_tokens": tokens["input"], "output_tokens": tokens["output"],
+            "snapshot_misses": misses, "input_tokens": tokens["input"],
+            "output_tokens": tokens["output"],
             "cost_usd": cost}
 
 

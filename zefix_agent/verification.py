@@ -1,13 +1,14 @@
 """Deterministic checks of the decision the LLM proposes.
 
-The LLM may propose an outcome, but this code decides whether the register answers in the state support
-it. A check accepts the outcome, sends the LLM back for a missing step (rework) or replaces the outcome
-with the one the evidence requires (override).
+The LLM may propose an outcome, but this code decides whether the register answers in the state
+support it. A check accepts the outcome, sends the LLM back for a missing step (rework) or replaces
+the outcome with the one the evidence requires (override).
 """
 
 import re
 
-from .validation import legal_forms_conflict, locality_matches, name_score, name_tokens, split_legal_form
+from .validation import (legal_forms_conflict, locality_matches, name_score, name_tokens,
+                         split_legal_form)
 
 OUTCOMES = ("MATCH", "AMBIGUOUS", "NO_MATCH", "TECHNICAL_ERROR")
 # a different legal form only counts as a contradiction if the names are otherwise this close
@@ -25,7 +26,8 @@ UNSUPPORTED_PHRASES = [
     "reliable company", "trustworthy", "does not exist", "no longer exist", "no longer exists",
     "never existed", "bonit*", "zahlungsf*", "kreditw*", "handlungsf*",
 ]
-# a sentence with one of these phrases says that the data cannot show a status, which is what it should say
+# a sentence with one of these phrases says that the data cannot show a status,
+# which is what it should say
 LIMIT_PHRASES = [
     "cannot", "can't", "can not", "unable to",
     "does not show", "does not prove", "does not say", "does not state", "does not establish",
@@ -33,16 +35,18 @@ LIMIT_PHRASES = [
     "no field", "no information", "no data", "not shown", "not stated", "not available",
     "kann nicht", "keine angabe", "keine aussage", "keine information",
 ]
-STATUS_WORD_IN_NAME = re.compile(r"\b(in\s+liquidation|in\s+liquidazione|en\s+liquidation|in\s+liq\.?)\b", re.IGNORECASE)
+STATUS_WORD_IN_NAME = re.compile(
+    r"\b(in\s+liquidation|in\s+liquidazione|en\s+liquidation|in\s+liq\.?)\b", re.IGNORECASE)
 # a UID like CHE-242.294.601 or a CH-ID like CH03640617915, with or without separators
-IDENTIFIER = re.compile(r"\bCHE[-\s]?\d{3}[.\s]?\d{3}[.\s]?\d{3}\b|\bCH[-\s]?\d{3}[-.\s]?\d[-.\s]?\d{3}[-.\s]?\d{3}[-.\s]?\d\b",
+IDENTIFIER = re.compile(r"\bCHE[-\s]?\d{3}[.\s]?\d{3}[.\s]?\d{3}\b"
+                        r"|\bCH[-\s]?\d{3}[-.\s]?\d[-.\s]?\d{3}[-.\s]?\d{3}[-.\s]?\d\b",
                         re.IGNORECASE)
 # a new sentence starts after . ! or ? and a space
 SENTENCE_END = r"(?<=[.!?])\s+"
 
 
 def phrase_regex(phrases):
-    """Build one regex from plain phrases, a space stands for any space and * for the rest of a word."""
+    """Build one regex from plain phrases. A space is any space, * is the rest of a word."""
     parts = []
     # the longest phrase first, so that "operationally active" wins over "operational"
     for phrase in sorted(phrases, key=len, reverse=True):
@@ -62,7 +66,9 @@ def registered_names(record):
 
 def locality_fits(locality, record):
     """Return True if the requested place fits the place or the municipality of a record."""
-    return locality_matches(locality, record.get("locality")) or locality_matches(locality, record.get("municipality"))
+    in_locality = locality_matches(locality, record.get("locality"))
+    in_municipality = locality_matches(locality, record.get("municipality"))
+    return in_locality or in_municipality
 
 
 def find_contradictions(request, record):
@@ -73,7 +79,8 @@ def find_contradictions(request, record):
         found.append(f"The requested UID {uid} differs from the register UID {record['uid']}.")
     locality = request.get("locality")
     if locality and not locality_fits(locality, record):
-        found.append(f"The requested place {locality} differs from the register place {record.get('locality')}.")
+        found.append(f"The requested place {locality} differs from the register place "
+                     f"{record.get('locality')}.")
     address = request.get("address")
     if address and record.get("street"):
         wanted = set(name_tokens(address))
@@ -81,11 +88,14 @@ def find_contradictions(request, record):
         have = set(name_tokens(" ".join(part for part in parts if part)))
         if not wanted <= have:
             found.append(f"The requested address {address} differs from the register address "
-                         f"{record.get('street')}, {record.get('postal_code')} {record.get('locality')}.")
+                         f"{record.get('street')}, {record.get('postal_code')} "
+                         f"{record.get('locality')}.")
     name = request.get("name")
     if name and record.get("legal_name"):
-        if best_name_score(name, record) >= CLOSE_NAME_SCORE and legal_forms_conflict(name, record["legal_name"]):
-            found.append(f"The legal form in the requested name {name} differs from the register name {record['legal_name']}.")
+        close_name = best_name_score(name, record) >= CLOSE_NAME_SCORE
+        if close_name and legal_forms_conflict(name, record["legal_name"]):
+            found.append(f"The legal form in the requested name {name} differs from the register "
+                         f"name {record['legal_name']}.")
     return found
 
 
@@ -130,7 +140,8 @@ def same_name_competitors(request, chosen_id, candidates, strong_score):
         if score < max(strong_score, chosen_score):
             continue
         # a place in the request separates companies with the same name
-        if request.get("locality") and not locality_matches(request["locality"], candidate.get("locality")):
+        wanted = request.get("locality")
+        if wanted and not locality_matches(wanted, candidate.get("locality")):
             continue
         competitors.append(company_id)
     return competitors
@@ -208,51 +219,72 @@ def _verdict(kind, outcome, message, notes=None):
     return {"verdict": kind, "outcome": outcome, "message": message, "notes": notes or []}
 
 
-def verify_match(decision, request, records, candidates, searches, strong_score):
+def verify_match(decision, request, records, candidates, searches, strong_score,
+                 uid_entries=None):
     """Check a proposed MATCH against the fetched record."""
     company_id = decision.get("company_id")
     if not company_id:
-        return _verdict("rework", "MATCH", "A MATCH needs company_id. Name the company or choose another outcome.")
+        return _verdict("rework", "MATCH",
+                        "A MATCH needs company_id. Name the company or choose another outcome.")
     if company_id not in records:
-        return _verdict("rework", "MATCH", f"Company {company_id} has no fetched record. Call get_company_records first.")
+        return _verdict("rework", "MATCH",
+                        f"Company {company_id} has no fetched record. "
+                        "Call get_company_records first.")
     record = records[company_id]
     contradictions = find_contradictions(request, record)
     if contradictions:
-        return _verdict("override", "AMBIGUOUS", "The request contradicts the register record.", contradictions)
+        return _verdict("override", "AMBIGUOUS", "The request contradicts the register record.",
+                        contradictions)
     if request.get("uid"):
-        return _verify_uid_match(request, record, searches, strong_score)
+        return _verify_uid_match(request, record, searches, strong_score, uid_entries or {})
     score = best_name_score(request["name"], record)
     if score < strong_score:
-        return _verdict("override", "AMBIGUOUS", f"The name score {score} is below {strong_score}, so this is only a possible candidate.",
-                        [f"The name of {record['legal_name']} is not close enough to {request['name']}."])
+        return _verdict("override", "AMBIGUOUS",
+                        f"The name score {score} is below {strong_score}, so this is only a "
+                        "possible candidate.",
+                        [f"The name of {record['legal_name']} is not close enough to "
+                         f"{request['name']}."])
     if score < 1.0 and not words_contained(request["name"], record):
-        return _verdict("override", "AMBIGUOUS", f"The name score {score} is high, but the spelling differs, so the user has to confirm it.",
-                        [f"{request['name']} and {record['legal_name']} can be two different companies with similar names."])
+        return _verdict("override", "AMBIGUOUS",
+                        f"The name score {score} is high, but the spelling differs, "
+                        "so the user has to confirm it.",
+                        [f"{request['name']} and {record['legal_name']} can be two different "
+                         "companies with similar names."])
     competitors = same_name_competitors(request, company_id, candidates, strong_score)
     if competitors:
-        return _verdict("override", "AMBIGUOUS", f"Other seen companies fit the request as well: {competitors}.",
-                        ["The request does not separate these companies, a further detail is needed."])
+        return _verdict("override", "AMBIGUOUS",
+                        f"Other seen companies fit the request as well: {competitors}.",
+                        ["The request does not separate these companies, "
+                         "a further detail is needed."])
     notes = []
     if not request.get("locality") and not request.get("address"):
         notes.append("The match rests on the name alone, no place or address was given.")
     if any(search.get("truncated") for search in searches):
         notes.append("At least one search reached the row limit, so other companies may exist.")
-    return _verdict("accept", "MATCH", f"Name score {score}, no contradiction, no competing company seen.", notes)
+    return _verdict("accept", "MATCH",
+                    f"Name score {score}, no contradiction, no competing company seen.", notes)
 
 
-def _verify_uid_match(request, record, searches, strong_score):
+def _verify_uid_match(request, record, searches, strong_score, uid_entries):
     """Check a proposed MATCH for a request with a UID."""
     if record.get("uid") != request["uid"]:
         return _verdict("override", "AMBIGUOUS", "The record has another UID than the request.")
     if request.get("name") and best_name_score(request["name"], record) < strong_score:
-        return _verdict("override", "AMBIGUOUS", "The UID exists, but its register name does not fit the requested name.",
-                        [f"The UID belongs to {record['legal_name']}, the request says {request['name']}."])
+        return _verdict("override", "AMBIGUOUS",
+                        "The UID exists, but its register name does not fit the requested name.",
+                        [f"The UID belongs to {record['legal_name']}, the request says "
+                         f"{request['name']}."])
     uid_hits = [search["hits"] or 0 for search in searches
                 if search["op"] == "lookup_uid" and search["status"] == "ok"]
-    entries = max(uid_hits, default=1)
+    # a follow-up makes no new search, so the count stored with the request also counts
+    uid_hits.append(uid_entries.get(request["uid"], 0))
+    entries = max(uid_hits)
     if entries > 1 and not request.get("locality") and not request.get("address"):
-        return _verdict("override", "AMBIGUOUS", f"This UID stands on {entries} register entries, so the UID alone does not select one.",
-                        ["The register holds more than one entry with this UID, for example for a company with two seats."])
+        return _verdict("override", "AMBIGUOUS",
+                        f"This UID stands on {entries} register entries, "
+                        "so the UID alone does not select one.",
+                        ["The register holds more than one entry with this UID, for example for a "
+                         "company with two seats."])
     return _verdict("accept", "MATCH", "The UID is equal and nothing contradicts the record.")
 
 
@@ -268,7 +300,8 @@ def fuzzy_step_missing(request, candidates, searches, strong_score):
     """Return True if a name was given, no seen company fits it and no fuzzy search has run."""
     if not request.get("name"):
         return False
-    if any(name_score(request["name"], candidate["legal_name"]) >= strong_score for candidate in candidates.values()):
+    names = [candidate["legal_name"] for candidate in candidates.values()]
+    if any(name_score(request["name"], name) >= strong_score for name in names):
         return False
     return not any(is_fuzzy_search(search) for search in searches)
 
@@ -277,22 +310,34 @@ def verify_no_match(request, candidates, searches, strong_score):
     """Check a proposed NO_MATCH, a failed search or a skipped scan is not an empty register."""
     ok, failed = _searches_ok(searches)
     if failed and not ok:
-        return _verdict("override", "TECHNICAL_ERROR", "All searches failed, so nothing can be said about the register.")
+        return _verdict("override", "TECHNICAL_ERROR",
+                        "All searches failed, so nothing can be said about the register.")
     if request.get("name"):
         strong = [company_id for company_id, candidate in candidates.items()
                   if name_score(request["name"], candidate["legal_name"]) >= strong_score]
         if strong:
-            return _verdict("rework", "NO_MATCH", f"Seen companies fit the name: {strong}. Fetch them or decide AMBIGUOUS.")
-        scans = [search for search in searches if search["op"] == "scan_legal_names" and search["status"] == "ok"]
+            return _verdict("rework", "NO_MATCH",
+                            f"Seen companies fit the name: {strong}. "
+                            "Fetch them or decide AMBIGUOUS.")
+        scans = [search for search in searches
+                 if search["op"] == "scan_legal_names" and search["status"] == "ok"]
         if not scans:
             if failed:
-                return _verdict("override", "TECHNICAL_ERROR", "The scan of the legal names did not complete, so a missing hit proves nothing.")
-            return _verdict("rework", "NO_MATCH", "The text index does not cover all legal names. Run scan_legal_names before NO_MATCH.")
+                return _verdict("override", "TECHNICAL_ERROR",
+                                "The scan of the legal names did not complete, "
+                                "so a missing hit proves nothing.")
+            return _verdict("rework", "NO_MATCH",
+                            "The text index does not cover all legal names. "
+                            "Run scan_legal_names before NO_MATCH.")
         if all(scan.get("truncated") for scan in scans):
             # a cut off scan may have stopped before the company, so it is not a completed search
-            return _verdict("rework", "NO_MATCH", "The scan reached the row limit, so companies may be missing. Scan again with a more specific part of the name.")
+            return _verdict("rework", "NO_MATCH",
+                            "The scan reached the row limit, so companies may be missing. Scan "
+                            "again with a more specific part of the name.")
         if fuzzy_step_missing(request, candidates, searches, strong_score):
-            return _verdict("rework", "NO_MATCH", "The searches are not tolerant of spelling. Run text_search with fuzzy=true before NO_MATCH.")
+            return _verdict("rework", "NO_MATCH",
+                            "The searches are not tolerant of spelling. Run text_search with "
+                            "fuzzy=true before NO_MATCH.")
     elif not any(search["op"] == "lookup_uid" and search["status"] == "ok" for search in searches):
         return _verdict("rework", "NO_MATCH", "Run lookup_uid before NO_MATCH.")
     notes = []
@@ -311,16 +356,22 @@ def verify_decision(decision, state, strong_score):
     if outcome not in OUTCOMES:
         return _verdict("rework", "AMBIGUOUS", f"Unknown outcome {outcome!r}.")
     if outcome == "MATCH":
-        return verify_match(decision, request, records, candidates, searches, strong_score)
+        return verify_match(decision, request, records, candidates, searches, strong_score,
+                            state.get("uid_entries"))
     if outcome == "NO_MATCH":
         return verify_no_match(request, candidates, searches, strong_score)
     if outcome == "AMBIGUOUS":
         if not candidates:
-            return _verdict("rework", "AMBIGUOUS", "AMBIGUOUS needs seen candidates. Search first or decide NO_MATCH.")
+            return _verdict("rework", "AMBIGUOUS",
+                            "AMBIGUOUS needs seen candidates. Search first or decide NO_MATCH.")
         if fuzzy_step_missing(request, candidates, searches, strong_score):
-            return _verdict("rework", "AMBIGUOUS", "No seen company fits the name. Run text_search with fuzzy=true before you decide.")
-        return _verdict("accept", "AMBIGUOUS", "The agent reported more than one possibility or a conflict.")
+            return _verdict("rework", "AMBIGUOUS",
+                            "No seen company fits the name. "
+                            "Run text_search with fuzzy=true before you decide.")
+        return _verdict("accept", "AMBIGUOUS",
+                        "The agent reported more than one possibility or a conflict.")
     _, failed = _searches_ok(searches)
     if not failed:
-        return _verdict("rework", "TECHNICAL_ERROR", "No tool call failed, so TECHNICAL_ERROR does not fit.")
+        return _verdict("rework", "TECHNICAL_ERROR",
+                        "No tool call failed, so TECHNICAL_ERROR does not fit.")
     return _verdict("accept", "TECHNICAL_ERROR", "A tool call failed.")
