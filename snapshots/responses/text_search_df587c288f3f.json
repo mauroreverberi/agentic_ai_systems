@@ -1,0 +1,17 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "ag",
+   "holzbau",
+   "müller"
+  ],
+  "locality": null,
+  "fuzzy": false,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(müller AND holzbau AND ag)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-23T10:35:10+00:00",
+ "response_seconds": 0.08,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/926799,S. Müller Holzbau AG,Bronschhofen\r\nhttps://register.ld.admin.ch/zefix/company/123841,Holzbau Müller Hirzel AG,Hirzel\r\nhttps://register.ld.admin.ch/zefix/company/123843,Müller Holzbau & Schreinerei AG,Walchwil\r\nhttps://register.ld.admin.ch/zefix/company/1208418,Peter Müller Zimmerei & Holzbau AG,Uerikon\r\n"
+}
