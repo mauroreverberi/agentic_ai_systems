@@ -3,7 +3,7 @@
  "changes_after_first_run": [
   "No expected result was changed.",
   "The holdout cases H1 to H10 were added after the first runs of the final cases, because three changes to the code came from final cases. Their expected results were fixed from register responses before their first run.",
-  "2026-11-23: The register no longer holds the Alpenglanz entry in Thusis, so the note of F13 now names two entries. The expected result of F13 did not change."
+  "2026-11-23: The Alpenglanz entry in Thusis was no longer returned by the dataset, so the note of F13 now names two entries. The expected result of F13 did not change."
  ],
  "cases": [
   {
@@ -330,7 +330,7 @@
      "scan_legal_names"
     ]
    },
-   "why": "No entry contains both words. Two entries contain Alpenglanz (Thun, St. Moritz), so the agent may name them as weak candidates, but none of them fits. A third entry in Thusis was removed from the register in November 2026."
+   "why": "No entry contains both words. Two entries contain Alpenglanz (Thun, St. Moritz), so the agent may name them as weak candidates, but none of them fits. A third entry in Thusis was returned on 2026-11-13 and no longer on 2026-11-23."
   },
   {
    "id": "F14",
