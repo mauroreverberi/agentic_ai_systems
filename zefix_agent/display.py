@@ -82,6 +82,18 @@ def show_result(result):
     print(f"note: {result.get('disclaimer')}")
 
 
+def show_turn(turn):
+    """Print the question of the agent if it waits for the user, otherwise the result."""
+    if turn["status"] == "needs_input":
+        question = turn["question"]
+        print(f"QUESTION: {question['question']}")
+        for candidate in question.get("candidates") or []:
+            print(f"  candidate {candidate['company_id']}: {candidate['legal_name']}, "
+                  f"{candidate.get('locality')}")
+        return
+    show_result(turn["result"])
+
+
 def results_table(rows):
     """Return a DataFrame with one line per evaluation case."""
     lines = []

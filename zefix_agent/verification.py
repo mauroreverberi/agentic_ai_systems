@@ -13,6 +13,11 @@ from .validation import (legal_forms_conflict, locality_matches, name_score, nam
 OUTCOMES = ("MATCH", "AMBIGUOUS", "NO_MATCH", "TECHNICAL_ERROR")
 # a different legal form only counts as a contradiction if the names are otherwise this close
 CLOSE_NAME_SCORE = 0.85
+# legal form codes of the register (eCH-0097) for the forms in a requested name, only codes that I
+# saw in the stored label responses, other codes like branches are never a contradiction
+LEGAL_FORM_CODES = {"AG": "0106", "GmbH": "0107", "Genossenschaft": "0108", "Stiftung": "0110"}
+SOLE_PROPRIETORSHIP_CODE = "0101"
+COMPARED_FORM_CODES = set(LEGAL_FORM_CODES.values()) | {SOLE_PROPRIETORSHIP_CODE}
 
 # statements that the register data cannot support, in English and German,
 # a * stands for the rest of a word, so bonit* also finds Bonität
@@ -96,7 +101,19 @@ def find_contradictions(request, record):
         if close_name and legal_forms_conflict(name, record["legal_name"]):
             found.append(f"The legal form in the requested name {name} differs from the register "
                          f"name {record['legal_name']}.")
+        elif close_name and legal_form_code_conflict(name, record):
+            found.append(f"The legal form in the requested name {name} differs from the register "
+                         f"legal form {record.get('legal_form') or record['legal_form_code']}.")
     return found
+
+
+def legal_form_code_conflict(requested, record):
+    """Return True if the requested name states a legal form that the code of the record denies."""
+    _, form = split_legal_form(requested)
+    code = record.get("legal_form_code")
+    if form not in LEGAL_FORM_CODES or code not in COMPARED_FORM_CODES:
+        return False
+    return code != LEGAL_FORM_CODES[form]
 
 
 def best_name_score(requested, record):
@@ -274,11 +291,10 @@ def _verify_uid_match(request, record, searches, strong_score, uid_entries):
                         "The UID exists, but its register name does not fit the requested name.",
                         [f"The UID belongs to {record['legal_name']}, the request says "
                          f"{request['name']}."])
-    uid_hits = [search["hits"] or 0 for search in searches
-                if search["op"] == "lookup_uid" and search["status"] == "ok"]
-    # a follow-up makes no new search, so the count stored with the request also counts
-    uid_hits.append(uid_entries.get(request["uid"], 0))
-    entries = max(uid_hits)
+    entries = uid_lookup_entries(request, searches, uid_entries)
+    if entries is None:
+        # without the lookup the check cannot know whether the UID has more than one entry
+        return _verdict("rework", "MATCH", "Run lookup_uid for the requested UID before MATCH.")
     if entries > 1 and not request.get("locality") and not request.get("address"):
         return _verdict("override", "AMBIGUOUS",
                         f"This UID stands on {entries} register entries, "
@@ -288,16 +304,35 @@ def _verify_uid_match(request, record, searches, strong_score, uid_entries):
     return _verdict("accept", "MATCH", "The UID is equal and nothing contradicts the record.")
 
 
-def is_fuzzy_search(search):
-    """Return True for a text search that allowed small spelling differences."""
+def asked_for_fuzzy(search):
+    """Return True for a text search that was called with the fuzzy mode."""
     if search["op"] != "text_search":
         return False
     params = search.get("params")
     return bool(params and params.get("fuzzy"))
 
 
+def is_fuzzy_search(search):
+    """Return True for a completed text search that allowed small spelling differences."""
+    return asked_for_fuzzy(search) and search["status"] == "ok"
+
+
+def uid_lookup_entries(request, searches, uid_entries):
+    """Return how many entries the lookup of the requested UID returned, None without a lookup."""
+    uid = request["uid"]
+    counts = [search["hits"] or 0 for search in searches
+              if search["op"] == "lookup_uid" and search["status"] == "ok"
+              and (search.get("params") or {}).get("uid") == uid]
+    # a follow-up makes no new search, so the count stored with the request also counts
+    if uid in uid_entries:
+        counts.append(uid_entries[uid])
+    if not counts:
+        return None
+    return max(counts)
+
+
 def fuzzy_step_missing(request, candidates, searches, strong_score):
-    """Return True if a name was given, no seen company fits it and no fuzzy search has run."""
+    """Return True if a name was given, no seen company fits it and no fuzzy search completed."""
     if not request.get("name"):
         return False
     names = [candidate["legal_name"] for candidate in candidates.values()]
@@ -306,12 +341,27 @@ def fuzzy_step_missing(request, candidates, searches, strong_score):
     return not any(is_fuzzy_search(search) for search in searches)
 
 
-def verify_no_match(request, candidates, searches, strong_score):
+def verify_no_match(request, candidates, searches, strong_score, uid_entries=None):
     """Check a proposed NO_MATCH, a failed search or a skipped scan is not an empty register."""
     ok, failed = _searches_ok(searches)
     if failed and not ok:
         return _verdict("override", "TECHNICAL_ERROR",
                         "All searches failed, so nothing can be said about the register.")
+    if request.get("uid"):
+        entries = uid_lookup_entries(request, searches, uid_entries or {})
+        if entries is None:
+            if any(search["op"] == "lookup_uid" for search in failed):
+                return _verdict("override", "TECHNICAL_ERROR",
+                                "The lookup of the requested UID did not complete, "
+                                "so a missing hit proves nothing.")
+            return _verdict("rework", "NO_MATCH",
+                            "Run lookup_uid for the requested UID before NO_MATCH.")
+        if entries:
+            # a UID that the register holds is a hit, whatever the other searches returned
+            return _verdict("rework", "NO_MATCH",
+                            f"The lookup of the requested UID returned {entries} register "
+                            "entries, so NO_MATCH does not fit. Fetch them and decide MATCH or "
+                            "AMBIGUOUS.")
     if request.get("name"):
         strong = [company_id for company_id, candidate in candidates.items()
                   if name_score(request["name"], candidate["legal_name"]) >= strong_score]
@@ -335,11 +385,14 @@ def verify_no_match(request, candidates, searches, strong_score):
                             "The scan reached the row limit, so companies may be missing. Scan "
                             "again with a more specific part of the name.")
         if fuzzy_step_missing(request, candidates, searches, strong_score):
+            if any(asked_for_fuzzy(search) for search in failed):
+                # a fuzzy search that failed is not a completed search
+                return _verdict("override", "TECHNICAL_ERROR",
+                                "The fuzzy search did not complete, "
+                                "so a missing hit proves nothing.")
             return _verdict("rework", "NO_MATCH",
                             "The searches are not tolerant of spelling. Run text_search with "
                             "fuzzy=true before NO_MATCH.")
-    elif not any(search["op"] == "lookup_uid" and search["status"] == "ok" for search in searches):
-        return _verdict("rework", "NO_MATCH", "Run lookup_uid before NO_MATCH.")
     notes = []
     if failed:
         notes.append("At least one search failed during this turn, so the result is less certain.")
@@ -359,7 +412,8 @@ def verify_decision(decision, state, strong_score):
         return verify_match(decision, request, records, candidates, searches, strong_score,
                             state.get("uid_entries"))
     if outcome == "NO_MATCH":
-        return verify_no_match(request, candidates, searches, strong_score)
+        return verify_no_match(request, candidates, searches, strong_score,
+                               state.get("uid_entries"))
     if outcome == "AMBIGUOUS":
         if not candidates:
             return _verdict("rework", "AMBIGUOUS",

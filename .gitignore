@@ -218,6 +218,3 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-
-# Local helper that draws architecture_diagram.png, not part of the submission
-scripts/build_architecture_diagram.py

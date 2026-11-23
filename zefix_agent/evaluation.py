@@ -1,8 +1,9 @@
 """Evaluation of the agent on cases with expected results that were fixed before the first run.
 
-The scoring uses the three levels of the course module 003_building_agents/module_10, the final
-result, the single steps and the trajectory. I did not use Ragas, because each case here has a fixed
-expected result from the register and no retrieved text that a model would have to judge.
+The scoring uses the three levels of the course module on evaluating agents, the final result, the
+single steps and the trajectory. For the trajectory it checks which tools a case used and how many
+calls it made, not their order. I did not use Ragas, because each case here has a fixed expected
+result from the register and no retrieved text that a model would have to judge.
 """
 
 import json

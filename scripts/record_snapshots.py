@@ -1,5 +1,7 @@
 """Store the planned register responses in snapshots/responses.
 
+The plan has my data probes and the records of all companies that the evaluation cases name.
+
 It uses the register tool in record mode, so a query with a stored response is not sent again.
 A run of the agent in record mode adds the responses of the queries it chose itself.
 
@@ -9,6 +11,7 @@ Usage: python -m scripts.record_snapshots
 import json
 
 from zefix_agent.config import load_config
+from zefix_agent.evaluation import load_cases
 from zefix_agent.register_tool import RegisterTool
 
 # legal names for the exact lookup, some with a spelling that is not in the register
@@ -51,15 +54,27 @@ SCANS = [
 ]
 # the second UID has a correct check digit, but no company has it
 UIDS = ["CHE242294601", "CHE000000000", "CHE105909036"]
-# company ids for the full records, the last two are only named in the evaluation case H5
+# company ids for the full records, 926799 and 123843 are only named in the evaluation case H5,
+# 350030 is the Gfeller company of the check in section 5 of the notebook
 RECORDS = [
     "1198554", "586855", "641452", "126288", "126286", "97692", "1151594", "1541422", "1665191",
     "774070", "570202", "1594098", "462042", "528525", "119271", "12164", "350030", "661574",
-    "390344", "1337570", "1672987", "1752157", "1775150", "926799", "123843",
+    "390344", "1337570", "1672987", "1752157", "1775150", "926799", "123843", "350030",
 ]
 # fields of a record that are printed
 RECORD_FIELDS = ("legal_name", "uid", "chid", "ehraid", "legal_form", "street", "postal_code",
                  "locality", "canton", "municipality", "names")
+
+
+def case_company_ids():
+    """Return the companies that the evaluation cases name, so that the tests can check them."""
+    ids = []
+    for case in load_cases():
+        expected = case["expected"]
+        ids += expected.get("candidates_include", []) + expected.get("must_not_company", [])
+        if "company_id" in expected:
+            ids.append(expected["company_id"])
+    return ids
 
 
 def run_searches(register):
@@ -92,7 +107,8 @@ def main():
     register = RegisterTool(config["register"])
     for outcome in run_searches(register):
         print_search(outcome)
-    for company_id in RECORDS:
+    # dict.fromkeys keeps the order and drops the ids that appear twice
+    for company_id in dict.fromkeys(RECORDS + case_company_ids()):
         print_record(company_id, register.company_record(company_id))
     print(f"sent {register.http_requests} HTTP requests")
 

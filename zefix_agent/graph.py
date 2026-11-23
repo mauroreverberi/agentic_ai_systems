@@ -16,6 +16,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph, add_messages
 from langgraph.types import Command, interrupt
+from pydantic import ValidationError
 
 from . import schemas
 from .config import load_system_prompt
@@ -35,8 +36,12 @@ MAX_USER_TEXT_LENGTH = 500
 RECORD_FACT_FIELDS = ("legal_name", "names", "uid", "chid", "ehraid", "legal_form", "street",
                       "postal_code", "locality", "canton", "municipality")
 SEARCH_FACT_FIELDS = ("op", "params", "status", "error_type", "hits", "truncated")
-EVIDENCE_FIELDS = ("legal_name", "uid", "chid", "ehraid", "legal_form", "street", "postal_code",
-                   "locality", "canton")
+# the readable legal form comes from a separate label lookup, so the evidence names the code that
+# stands in the record itself
+EVIDENCE_FIELDS = ("legal_name", "uid", "chid", "ehraid", "legal_form_code", "street",
+                   "postal_code", "locality", "canton")
+FIXED_QUESTION = "Can you give the exact company name, the place or the UID?"
+TOOL_SCHEMAS = {tool.model_config["title"]: tool for tool in schemas.AGENT_TOOLS}
 FINALIZE_NODES = {"MATCH": "finalize_match", "AMBIGUOUS": "finalize_ambiguous",
                   "NO_MATCH": "finalize_no_match",
                   "TECHNICAL_ERROR": "finalize_technical_error"}
@@ -94,6 +99,33 @@ def known_facts(state, limits):
     }, ensure_ascii=False, indent=1)
 
 
+def validated_args(name, args):
+    """Return the arguments of a tool call checked against its schema, with converted types."""
+    payload = dict(args or {})
+    # the reason is only for the log, a missing reason does not block a call
+    if not payload.get("reason"):
+        payload["reason"] = ""
+    # a company id as a number is harmless, so it becomes text as before the schema check
+    for key in ("company_ids", "candidate_ids"):
+        if isinstance(payload.get(key), list):
+            payload[key] = [as_id_text(value) for value in payload[key]]
+    if "company_id" in payload:
+        payload["company_id"] = as_id_text(payload["company_id"])
+    return TOOL_SCHEMAS[name].model_validate(payload).model_dump()
+
+
+def as_id_text(value):
+    """Return a whole number as text and leave every other value as it is."""
+    if isinstance(value, int) and not isinstance(value, bool):
+        return str(value)
+    return value
+
+
+def invalid_fields(exc):
+    """Return the names of the arguments that failed the schema check, for the LLM and the log."""
+    return sorted({".".join(str(part) for part in error["loc"]) for error in exc.errors()})
+
+
 def limit_context(messages, max_tokens):
     """Return the newest messages that fit the budget, starting with a human message."""
     trimmed = trim_messages(messages, max_tokens=max_tokens, strategy="last",
@@ -140,7 +172,10 @@ def build_graph(llm, register, config, checkpointer=None, prompt=None):
                 return fresh_turn
             request = validate_request(incoming.get("fields") or {})
         except InvalidInput as exc:
-            fresh_turn["request"] = state.get("request") or {}
+            # a rejected follow-up keeps the request, a rejected new request must not show the old
+            fresh_turn["request"] = {}
+            if kind == "followup":
+                fresh_turn["request"] = state.get("request") or {}
             fresh_turn["stop_reason"] = f"invalid_input: {exc}"
             fresh_turn["trace"] = [event("intake", "input_rejected", reason=str(exc))]
             return fresh_turn
@@ -186,6 +221,15 @@ def build_graph(llm, register, config, checkpointer=None, prompt=None):
         """Run one tool call and return the text for the LLM and the logged facts."""
         if name == SUBMIT:
             return {"error": "submit_decision must be called alone."}, None
+        if name not in TOOL_SCHEMAS:
+            return {"error": f"Unknown tool {name}."}, {"op": name, "refused": "unknown_tool"}
+        try:
+            args = validated_args(name, args)
+        except ValidationError as exc:
+            fields = invalid_fields(exc)
+            return ({"error": f"Input rejected: the arguments {fields} are missing or have the "
+                     "wrong type."},
+                    {"op": name, "refused": "invalid_argument", "fields": fields})
         if name == "update_request":
             return update_request(args, state, request)
         if name == "lookup_uid":
@@ -208,10 +252,8 @@ def build_graph(llm, register, config, checkpointer=None, prompt=None):
                         "have."}, {"op": name, "refused": "scan_budget"}
             state["scan_calls_used"] += 1
             outcome = register.scan_legal_names(args["fragment"], args.get("locality"))
-        elif name == "get_company_records":
-            return fetch_records(args, request, records, record_meta, searches, candidates)
         else:
-            return {"error": f"Unknown tool {name}."}, {"op": name, "refused": "unknown_tool"}
+            return fetch_records(args, request, records, record_meta, searches, candidates)
         entry = search_entry(outcome)
         searches.append(entry)
         for found in outcome.get("candidates", []):
@@ -350,7 +392,14 @@ def build_graph(llm, register, config, checkpointer=None, prompt=None):
         """Check the proposed decision against the evidence in the state."""
         call = state["messages"][-1].tool_calls[0]
         decision = call["args"]
-        verdict = verify_decision(decision, state, strong_score)
+        try:
+            decision = validated_args(SUBMIT, decision)
+            verdict = verify_decision(decision, state, strong_score)
+        except ValidationError as exc:
+            fields = invalid_fields(exc)
+            verdict = {"verdict": "rework", "outcome": str(decision.get("outcome")),
+                       "message": f"The arguments {fields} of submit_decision are missing or have "
+                       "the wrong type. Submit the decision again.", "notes": []}
         reworks = state.get("reworks_used", 0)
         if verdict["verdict"] == "rework":
             reworks += 1
@@ -395,9 +444,8 @@ def build_graph(llm, register, config, checkpointer=None, prompt=None):
         # so nothing before interrupt() may change anything
         decision = state.get("decision") or {}
         candidates = state.get("candidates") or {}
-        question = decision.get("clarification_question")
-        if not question:
-            question = "Can you give a further detail, such as the place or the UID?"
+        question = checked_question(decision.get("clarification_question"),
+                                    state.get("request") or {}, state.get("records") or {})
         ids = decision.get("candidate_ids") or list(candidates.keys())
         shown = [candidates[company_id] for company_id in ids if candidates.get(company_id)]
         answer = interrupt({"question": question, "candidates": shown,
@@ -439,7 +487,14 @@ def build_graph(llm, register, config, checkpointer=None, prompt=None):
         outcome = fixed_outcome or verdict.get("outcome") or "TECHNICAL_ERROR"
         texts = checked_texts(decision, request, records)
         rationale = texts["rationale"]
+        answer = texts["answer"] or None
         uncertainties = texts["uncertainties"] + list(verdict.get("notes") or [])
+        if verdict.get("verdict") == "override" and not stop:
+            # the text of the LLM argues for the outcome it proposed, so the result explains the
+            # outcome of the check instead, the text of the LLM stays in the decision log
+            rationale = (f"The check changed the proposed outcome {decision.get('outcome')} to "
+                         f"{outcome}. {verdict.get('message')}")
+            answer = None
         if stop and stop.startswith("invalid_input"):
             outcome = "INVALID_INPUT"
             rationale = f"The input was rejected before any search. {stop.split(': ', 1)[1]}"
@@ -466,7 +521,7 @@ def build_graph(llm, register, config, checkpointer=None, prompt=None):
             outcome=outcome, request=request, company=company, candidates=shown, evidence=evidence,
             retrieved_at=latest_retrieval(state.get("searches") or [], meta),
             register_mode=register.mode,
-            rationale=rationale, answer_to_user=texts["answer"] or None,
+            rationale=rationale, answer_to_user=answer,
             uncertainties=uncertainties,
             verifier=verifier, removed_statements=texts["removed"],
             removed_identifiers=texts["unknown"],
@@ -527,14 +582,28 @@ def checked_texts(decision, request, records):
     rationale, unknown = remove_unknown_identifiers(rationale, known)
     answer, unknown_answer = remove_unknown_identifiers(answer, known)
     unknown = unknown + unknown_answer
+    removed = removed + removed_answer
     uncertainties = []
     for note in decision.get("uncertainties") or []:
+        note, removed_note = clean_free_text(note)
+        removed += removed_note
         kept, dropped = remove_unknown_identifiers(note, known)
         unknown += dropped
         if kept:
             uncertainties.append(kept)
     return {"rationale": rationale, "answer": answer, "uncertainties": uncertainties,
-            "removed": removed + removed_answer, "unknown": unknown}
+            "removed": removed, "unknown": unknown}
+
+
+def checked_question(question, request, records):
+    """Return the question of the LLM, or the fixed question if a check removed a part of it."""
+    if not question:
+        return FIXED_QUESTION
+    kept, removed = clean_free_text(question)
+    kept, unknown = remove_unknown_identifiers(kept, known_identifiers(request, records))
+    if removed or unknown or not kept:
+        return FIXED_QUESTION
+    return question
 
 
 def company_from_record(company_id, record):
@@ -571,8 +640,12 @@ def shown_candidates(decision, request, candidates):
                          key=lambda c: name_score(request.get("name") or "", c["legal_name"]),
                          reverse=True)
         ids = [candidate["company_id"] for candidate in ordered[:10]]
-    return [schemas.Candidate.model_validate(candidates[company_id])
-            for company_id in ids if company_id in candidates]
+    shown = [schemas.Candidate.model_validate(candidates[company_id])
+             for company_id in ids if company_id in candidates]
+    if not shown and decision.get("candidate_ids"):
+        # the LLM named only unknown companies, so the result shows the best seen names instead
+        return shown_candidates({}, request, candidates)
+    return shown
 
 
 def latest_retrieval(searches, meta):
@@ -636,9 +709,12 @@ class ZefixAgent:
             self.graph.invoke(payload, settings)
         except GraphRecursionError:
             LOG.error("recursion limit reached in thread %s", thread_id)
-            return {"status": "done",
-                    "result": {"outcome": "TECHNICAL_ERROR",
-                               "rationale": "The graph reached its recursion limit."}}
+            request = self.graph.get_state(settings).values.get("request") or {}
+            result = schemas.IdentificationResult(
+                outcome="TECHNICAL_ERROR", request=request, register_mode=self.register.mode,
+                rationale="The graph reached its recursion limit. Nothing is concluded about the "
+                          "company.")
+            return {"status": "done", "result": result.model_dump()}
         snapshot = self.graph.get_state(settings)
         for task in snapshot.tasks:
             for paused in task.interrupts:

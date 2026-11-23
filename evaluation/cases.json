@@ -1,9 +1,9 @@
 {
- "fixed_before_first_agent_run": "2026-11-06",
- "note": "Expected results were fixed from stored register responses before any run with the real LLM. Later changes are listed in changes_after_first_run.",
+ "note": "I fixed the expected result of each case from register responses before the first run of this case with the real LLM, in development runs between 2026-11-06 and 2026-11-13. On 2026-11-23 I recorded all register responses again and checked each expected result against them. The runs in evaluation/results started after the commit that holds this file and these responses.",
  "changes_after_first_run": [
-  "2026-11-06: No expected result of a dev or final case was changed.",
-  "2026-11-06: The holdout cases H1 to H10 were added after the first two runs of the final cases, because three changes to the code came from final cases. Their expected results were fixed from stored register answers before their first run."
+  "No expected result was changed.",
+  "The holdout cases H1 to H10 were added after the first runs of the final cases, because three changes to the code came from final cases. Their expected results were fixed from register responses before their first run.",
+  "2026-11-23: The register no longer holds the Alpenglanz entry in Thusis, so the note of F13 now names two entries. The expected result of F13 did not change."
  ],
  "cases": [
   {
@@ -330,7 +330,7 @@
      "scan_legal_names"
     ]
    },
-   "why": "No entry contains both words. Three entries contain Alpenglanz (Thun, Thusis, St. Moritz), so the agent may name them as weak candidates, but none of them fits."
+   "why": "No entry contains both words. Two entries contain Alpenglanz (Thun, St. Moritz), so the agent may name them as weak candidates, but none of them fits. A third entry in Thusis was removed from the register in November 2026."
   },
   {
    "id": "F14",

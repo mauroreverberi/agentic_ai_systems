@@ -18,7 +18,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from scripted_llm import ScriptedLLM
 from zefix_agent.config import load_config
 from zefix_agent.evaluation import load_cases
-from zefix_agent.graph import ZefixAgent, build_llm, limit_context
+from zefix_agent.graph import FIXED_QUESTION, ZefixAgent, build_llm, limit_context
 from zefix_agent.register_tool import (FaultPlan, RegisterTool, SnapshotStore, build_lucene_query,
                                        clean_register_text)
 from zefix_agent.schemas import AGENT_TOOLS
@@ -269,6 +269,60 @@ class CheckTests(unittest.TestCase):
                  "searches": searches}
         self.assertEqual(verify_decision({"outcome": "NO_MATCH"}, state, 0.85)["verdict"], "rework")
 
+    def test_failed_fuzzy_search_cannot_support_no_match(self):
+        """A fuzzy search that failed does not count as the fuzzy step of a NO_MATCH."""
+        scan = {"op": "scan_legal_names", "status": "ok", "hits": 0}
+        fuzzy = {"op": "text_search", "status": "error", "error_type": "timeout",
+                 "params": {"fuzzy": True}}
+        state = {"request": {"name": "Nothing"}, "records": {}, "candidates": {},
+                 "searches": [scan, fuzzy]}
+        self.assertEqual(verify_decision({"outcome": "NO_MATCH"}, state, 0.85)["outcome"],
+                         "TECHNICAL_ERROR")
+        fuzzy = {"op": "text_search", "status": "ok", "hits": 0, "params": {"fuzzy": True}}
+        state["searches"] = [scan, fuzzy]
+        self.assertEqual(verify_decision({"outcome": "NO_MATCH"}, state, 0.85)["verdict"], "accept")
+
+    def test_uid_with_an_entry_cannot_become_no_match(self):
+        """A NO_MATCH for a UID needs a lookup of this UID that returned no entry."""
+        uid = "CHE242294601"
+
+        def verdict(searches):
+            """Check a proposed NO_MATCH for the UID with the given searches."""
+            state = {"request": {"uid": uid}, "records": {}, "candidates": {},
+                     "searches": searches}
+            return verify_decision({"outcome": "NO_MATCH"}, state, 0.85)["verdict"]
+
+        found = {"op": "lookup_uid", "status": "ok", "hits": 1, "params": {"uid": uid}}
+        empty = {"op": "lookup_uid", "status": "ok", "hits": 0, "params": {"uid": uid}}
+        other = {"op": "lookup_uid", "status": "ok", "hits": 0, "params": {"uid": "CHE105909036"}}
+        self.assertEqual(verdict([found]), "rework")
+        self.assertEqual(verdict([other]), "rework")
+        self.assertEqual(verdict([empty]), "accept")
+
+    def test_legal_form_code_blocks_a_match(self):
+        """A request for an AG cannot match a sole proprietorship whose name has no legal form."""
+        record = snapshot_register().company_record("774070")["record"]
+        self.assertEqual(record["legal_form_code"], "0101")
+        state = {"request": {"name": "Müller Holzbau AG"}, "records": {"774070": record},
+                 "candidates": {"774070": {"company_id": "774070",
+                                           "legal_name": record["legal_name"],
+                                           "locality": record["locality"]}},
+                 "searches": []}
+        verdict = verify_decision({"outcome": "MATCH", "company_id": "774070"}, state, 0.85)
+        self.assertEqual(verdict["outcome"], "AMBIGUOUS")
+        state["request"] = {"name": "Müller Holzbau"}
+        verdict = verify_decision({"outcome": "MATCH", "company_id": "774070"}, state, 0.85)
+        self.assertEqual(verdict["verdict"], "accept")
+
+    def test_uid_match_needs_a_lookup_of_this_uid(self):
+        """A MATCH for a UID needs a lookup of this UID, so a UID with two entries is not missed."""
+        state = self.state({"uid": "CHE242294601"})
+        decision = {"outcome": "MATCH", "company_id": "1"}
+        self.assertEqual(verify_decision(decision, state, 0.85)["verdict"], "rework")
+        state["searches"] = [{"op": "lookup_uid", "status": "ok", "hits": 1,
+                              "params": {"uid": "CHE242294601"}}]
+        self.assertEqual(verify_decision(decision, state, 0.85)["verdict"], "accept")
+
     def test_status_statements(self):
         """Statements about status are removed, sentences about missing data stay."""
         self.assertTrue(status_claims("The company is active and solvent."))
@@ -421,6 +475,82 @@ class GraphTests(unittest.TestCase):
             rejected = [entry for entry in agent.trace(thread)
                         if entry["event"] == "input_rejected"]
             self.assertEqual(len(rejected), 1)
+
+    def test_wrong_decision_argument_is_sent_back_and_not_a_crash(self):
+        """A decision with an argument of the wrong type goes back to the LLM."""
+        agent, _ = agent_with([
+            ("exact_name", {"name": "Zazuko GmbH"}),
+            ("get_company_records", {"company_ids": ["1198554"]}),
+            ("submit_decision",
+             {"outcome": "MATCH", "company_id": ["1198554"], "rationale": "One entry fits."}),
+            ("submit_decision",
+             {"outcome": "MATCH", "company_id": "1198554", "rationale": "One entry fits."}),
+        ])
+        result = agent.identify({"name": "Zazuko GmbH"}, "t20")["result"]
+        self.assertEqual(result["outcome"], "MATCH")
+        checks = [entry["verdict"] for entry in agent.trace("t20") if entry["event"] == "checked"]
+        self.assertEqual(checks, ["rework", "accept"])
+
+    def test_unknown_field_of_update_request_is_refused(self):
+        """update_request only changes the four fields of a request."""
+        agent, _ = agent_with([
+            ("exact_name", {"name": "Garage Müller"}),
+            ("submit_decision",
+             {"outcome": "AMBIGUOUS", "candidate_ids": ["1151594", "1541422"],
+              "rationale": "Two.", "clarification_question": "Where is it?"}),
+            ("update_request", {"field": "status", "value": "Obfelden"}),
+            ("submit_decision",
+             {"outcome": "AMBIGUOUS", "candidate_ids": ["1151594", "1541422"],
+              "rationale": "Still two."}),
+        ])
+        agent.identify({"name": "Garage Müller"}, "t21")
+        result = agent.answer("The one in Obfelden", "t21")["result"]
+        refused = [entry["result"] for entry in agent.trace("t21")
+                   if entry["event"] == "tool_result" and entry["result"].get("refused")]
+        self.assertEqual(refused[0]["refused"], "invalid_argument")
+        self.assertNotIn("status", result["request"])
+
+    def test_question_with_a_status_statement_is_replaced(self):
+        """A question of the LLM with a statement about status is replaced by the fixed question."""
+        agent, _ = agent_with([
+            ("exact_name", {"name": "Garage Müller"}),
+            ("submit_decision",
+             {"outcome": "AMBIGUOUS", "candidate_ids": ["1151594", "1541422"], "rationale": "Two.",
+              "clarification_question": "Do you mean the one that is still active?"}),
+        ])
+        turn = agent.identify({"name": "Garage Müller"}, "t22")
+        self.assertEqual(turn["question"]["question"], FIXED_QUESTION)
+
+    def test_override_result_explains_the_check(self):
+        """A replaced MATCH that ends the turn explains the check and not the MATCH of the LLM."""
+        agent, _ = agent_with([
+            ("exact_name", {"name": "Garage Müller"}),
+            ("get_company_records", {"company_ids": ["1541422"]}),
+            ("submit_decision", {"outcome": "MATCH", "company_id": "1541422",
+                                 "rationale": "It fits.", "answer_to_user": "It is in Obfelden."}),
+            ("submit_decision", {"outcome": "MATCH", "company_id": "1541422",
+                                 "rationale": "It fits.", "answer_to_user": "It is in Obfelden."}),
+        ])
+        turn = agent.identify({"name": "Garage Müller"}, "t23")
+        self.assertEqual(turn["question"]["question"], FIXED_QUESTION)
+        result = agent.answer("I do not know", "t23")["result"]
+        self.assertEqual(result["outcome"], "AMBIGUOUS")
+        self.assertTrue(result["rationale"].startswith("The check changed the proposed outcome "
+                                                       "MATCH to AMBIGUOUS."))
+        self.assertIsNone(result["answer_to_user"])
+
+    def test_rejected_new_request_does_not_show_the_old_request(self):
+        """A rejected new request in a thread does not repeat the request before it."""
+        agent, _ = agent_with([
+            ("exact_name", {"name": "Zazuko GmbH"}),
+            ("get_company_records", {"company_ids": ["1198554"]}),
+            ("submit_decision",
+             {"outcome": "MATCH", "company_id": "1198554", "rationale": "One entry fits."}),
+        ])
+        agent.identify({"name": "Zazuko GmbH"}, "t24")
+        result = agent.identify({"uid": "CHE-242.294.602"}, "t24")["result"]
+        self.assertEqual(result["outcome"], "INVALID_INPUT")
+        self.assertEqual(result["request"], {})
 
     def test_follow_up_cannot_pass_a_uid_with_two_entries(self):
         """A UID on two entries stays AMBIGUOUS when a follow-up proposes MATCH without a search."""
