@@ -196,6 +196,28 @@ class RegisterToolTests(unittest.TestCase):
         self.assertEqual(Fake.calls, 1)
 
 
+    def test_answer_without_the_expected_columns_is_not_stored(self):
+        """An HTTP 200 answer that is no register CSV is an error and never becomes a snapshot."""
+        class Fake:
+            headers = {}
+
+            def post(self, *args, **kwargs):
+                """Answer every request with an HTML page and HTTP 200."""
+                response = requests.Response()
+                response.status_code = 200
+                response._content = b"<html>maintenance</html>"
+                return response
+
+        config = load_config()
+        config["register"]["mode"] = "record"
+        with tempfile.TemporaryDirectory() as folder:
+            register = RegisterTool(config["register"], store=SnapshotStore(folder),
+                                    session=Fake(), sleep=lambda s: None)
+            outcome = register.exact_name("A name that was never stored")
+            self.assertEqual(outcome["error_type"], "malformed_response")
+            self.assertEqual(os.listdir(folder), [])
+
+
 class CheckTests(unittest.TestCase):
     RECORD = {"company_id": "1", "legal_name": "Zazuko GmbH", "names": [], "uid": "CHE242294601",
               "locality": "Biel/Bienne", "street": "Winkelstrasse 20", "postal_code": "2502",
@@ -313,6 +335,55 @@ class CheckTests(unittest.TestCase):
         state["request"] = {"name": "Müller Holzbau"}
         verdict = verify_decision({"outcome": "MATCH", "company_id": "774070"}, state, 0.85)
         self.assertEqual(verdict["verdict"], "accept")
+
+    def test_translated_name_of_a_fetched_record_counts(self):
+        """A fetched record that fits by a translated name blocks NO_MATCH and the fuzzy rule."""
+        record = snapshot_register().company_record("119271")["record"]
+        self.assertIn("Banque Migros SA", record["names"])
+        candidates = {"119271": {"company_id": "119271", "legal_name": record["legal_name"],
+                                 "locality": record["locality"]}}
+        searches = [{"op": "scan_legal_names", "status": "ok", "hits": 0},
+                    {"op": "text_search", "status": "ok", "hits": 1, "params": {"fuzzy": True}}]
+        state = {"request": {"name": "Banque Migros SA"}, "records": {"119271": record},
+                 "candidates": candidates, "searches": searches}
+        self.assertEqual(verify_decision({"outcome": "NO_MATCH"}, state, 0.85)["verdict"], "rework")
+        # without the fuzzy search the AMBIGUOUS is still accepted, because a seen company fits
+        state["searches"] = searches[:1]
+        self.assertEqual(verify_decision({"outcome": "AMBIGUOUS"}, state, 0.85)["verdict"],
+                         "accept")
+
+    def test_address_separates_companies_with_the_same_name(self):
+        """The street of one fetched record separates two companies with the same legal name."""
+        register = snapshot_register()
+        records = {i: register.company_record(i)["record"] for i in ("1151594", "1541422")}
+        candidates = {i: {"company_id": i, "legal_name": records[i]["legal_name"],
+                          "locality": records[i]["locality"]} for i in records}
+        request = {"name": "Garage Müller", "address": records["1541422"]["street"]}
+        state = {"request": request, "records": records, "candidates": candidates, "searches": []}
+        verdict = verify_decision({"outcome": "MATCH", "company_id": "1541422"}, state, 0.85)
+        self.assertEqual(verdict["outcome"], "MATCH")
+        state["request"] = {"name": "Garage Müller"}
+        verdict = verify_decision({"outcome": "MATCH", "company_id": "1541422"}, state, 0.85)
+        self.assertEqual(verdict["outcome"], "AMBIGUOUS")
+
+    def test_detail_must_separate_all_entries_of_a_uid(self):
+        """For a UID with two entries the place must rule out the other entry."""
+        register = snapshot_register()
+        cham = register.company_record("126286")["record"]
+        vevey = register.company_record("126288")["record"]
+        uid = vevey["uid"]
+        lookup = {"op": "lookup_uid", "status": "ok", "hits": 2, "params": {"uid": uid}}
+        state = {"request": {"uid": uid, "locality": "Vevey"}, "records": {"126288": vevey},
+                 "candidates": {}, "searches": [lookup],
+                 "uid_entries": {uid: ["126286", "126288"]}}
+        decision = {"outcome": "MATCH", "company_id": "126288"}
+        self.assertEqual(verify_decision(decision, state, 0.85)["verdict"], "rework")
+        state["records"] = {"126286": cham, "126288": vevey}
+        self.assertEqual(verify_decision(decision, state, 0.85)["outcome"], "MATCH")
+        # a place that fits both entries does not select one
+        same_place = dict(cham, locality="Vevey", municipality="Vevey")
+        state["records"] = {"126286": same_place, "126288": vevey}
+        self.assertEqual(verify_decision(decision, state, 0.85)["outcome"], "AMBIGUOUS")
 
     def test_uid_match_needs_a_lookup_of_this_uid(self):
         """A MATCH for a UID needs a lookup of this UID, so a UID with two entries is not missed."""
@@ -551,6 +622,35 @@ class GraphTests(unittest.TestCase):
         result = agent.identify({"uid": "CHE-242.294.602"}, "t24")["result"]
         self.assertEqual(result["outcome"], "INVALID_INPUT")
         self.assertEqual(result["request"], {})
+        self.assertIsNone(result["retrieved_at"])
+
+    def test_three_invalid_decisions_end_in_a_controlled_result(self):
+        """Invalid decisions up to the rework limit end in a result and not in an exception."""
+        bad = ("submit_decision",
+               {"outcome": "MATCH", "company_id": "1198554", "rationale": 123})
+        agent, _ = agent_with([("exact_name", {"name": "Zazuko GmbH"}),
+                               ("get_company_records", {"company_ids": ["1198554"]}),
+                               bad, bad, bad,
+                               ("submit_decision", {"outcome": "AMBIGUOUS",
+                                                    "candidate_ids": ["1198554"],
+                                                    "rationale": "Not sure."})])
+        turn = agent.identify({"name": "Zazuko GmbH"}, "t25")
+        self.assertEqual(turn["question"]["question"], FIXED_QUESTION)
+        result = agent.answer("I do not know", "t25")["result"]
+        self.assertEqual(result["outcome"], "AMBIGUOUS")
+
+    def test_stopped_turn_shows_nothing_of_a_rejected_proposal(self):
+        """A turn that stops after a rework shows no answer of the proposal that was sent back."""
+        script = [("exact_name", {"name": "Zazuko GmbH"}),
+                  ("submit_decision", {"outcome": "NO_MATCH", "rationale": "Nothing fits.",
+                                       "answer_to_user": "There is no such company.",
+                                       "uncertainties": ["Maybe another spelling."]})]
+        script += [("exact_name", {"name": "Zazuko GmbH"})] * 7
+        agent, _ = agent_with(script)
+        result = agent.identify({"name": "Zazuko GmbH"}, "t26")["result"]
+        self.assertEqual(result["outcome"], "TECHNICAL_ERROR")
+        self.assertIsNone(result["answer_to_user"])
+        self.assertEqual(result["uncertainties"], [])
 
     def test_follow_up_cannot_pass_a_uid_with_two_entries(self):
         """A UID on two entries stays AMBIGUOUS when a follow-up proposes MATCH without a search."""
@@ -706,7 +806,7 @@ class GraphTests(unittest.TestCase):
         # langchain_openai builds the request without sending it,
         # so the settings can be checked offline
         payload = bound.bound._get_request_payload([HumanMessage(content="x")], **bound.kwargs)
-        self.assertEqual(payload["model"], "gpt-6-luna")
+        self.assertEqual(payload["model"], load_config()["llm"]["model"])
         self.assertFalse(bound.bound._use_responses_api(payload))
         # OpenAI allows function calling for this model in Chat Completions only with this value
         self.assertEqual(payload["reasoning_effort"], "none")

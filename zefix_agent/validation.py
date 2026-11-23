@@ -17,7 +17,7 @@ UID_WEIGHTS = (5, 4, 3, 2, 7, 6, 5, 4)
 LEGAL_FORM_WORDS = {
     "ag": "AG", "sa": "AG", "ltd": "AG", "gmbh": "GmbH", "sarl": "GmbH", "sagl": "GmbH",
     "llc": "GmbH", "genossenschaft": "Genossenschaft", "cooperative": "Genossenschaft",
-    "stiftung": "Stiftung", "verein": "Verein", "kg": "KG", "kollektivgesellschaft": "KG",
+    "stiftung": "Stiftung", "verein": "Verein", "kg": "KG",
 }
 LEGAL_FORM_PHRASES = (("s", "a"), ("s", "a", "r", "l"), ("s", "a", "g", "l"))
 ASCII_FOLD = {"ä": "ae", "ö": "oe", "ü": "ue", "ß": "ss", "æ": "ae", "œ": "oe"}

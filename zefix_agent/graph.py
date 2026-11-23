@@ -91,7 +91,9 @@ def known_facts(state, limits):
         "records_fetched": records,
         "searches_this_turn": searches,
         "budget": {
-            "tool_calls_left": limits["max_tool_calls_per_turn"] - state.get("tool_calls_used", 0),
+            # the call that reaches the limit ends the turn, so one call less is left for searching
+            "tool_calls_left": (limits["max_tool_calls_per_turn"]
+                                - state.get("tool_calls_used", 0) - 1),
             "scans_left": limits["max_scan_calls_per_turn"] - state.get("scan_calls_used", 0),
             "clarifications_left": (limits["max_clarifications"]
                                     - state.get("clarifications_used", 0)),
@@ -173,9 +175,11 @@ def build_graph(llm, register, config, checkpointer=None, prompt=None):
             request = validate_request(incoming.get("fields") or {})
         except InvalidInput as exc:
             # a rejected follow-up keeps the request, a rejected new request must not show the old
-            fresh_turn["request"] = {}
+            fresh_turn.update(request={}, candidates={}, records={}, record_meta={},
+                              uid_entries={})
             if kind == "followup":
-                fresh_turn["request"] = state.get("request") or {}
+                for key in ("request", "candidates", "records", "record_meta", "uid_entries"):
+                    fresh_turn[key] = state.get(key) or {}
             fresh_turn["stop_reason"] = f"invalid_input: {exc}"
             fresh_turn["trace"] = [event("intake", "input_rejected", reason=str(exc))]
             return fresh_turn
@@ -237,7 +241,8 @@ def build_graph(llm, register, config, checkpointer=None, prompt=None):
             outcome = register.lookup_uid(uid)
             if outcome["status"] == "ok":
                 # kept with the request, so a later follow-up still knows a UID with two entries
-                state["uid_entries"][uid] = len(outcome["candidates"])
+                state["uid_entries"][uid] = [found["company_id"]
+                                             for found in outcome["candidates"]]
         elif name == "exact_name":
             name_value = clean_text(args["name"], "name", 200)
             if not name_value:
@@ -250,8 +255,9 @@ def build_graph(llm, register, config, checkpointer=None, prompt=None):
             if state["scan_calls_used"] >= limits["max_scan_calls_per_turn"]:
                 return {"error": "The scan budget of this turn is used up, decide with what you "
                         "have."}, {"op": name, "refused": "scan_budget"}
-            state["scan_calls_used"] += 1
+            # a fragment that the tool refuses does not use the scan budget
             outcome = register.scan_legal_names(args["fragment"], args.get("locality"))
+            state["scan_calls_used"] += 1
         else:
             return fetch_records(args, request, records, record_meta, searches, candidates)
         entry = search_entry(outcome)
@@ -318,7 +324,9 @@ def build_graph(llm, register, config, checkpointer=None, prompt=None):
                 replies.append({"company_id": company_id, "status": "ok", "record": shown,
                                 "comparison_with_request": compare_with_request(request, record)})
         return {"results": replies}, {"op": "get_company_records", "ids": ids,
-                                      "statuses": [s["status"] for s in statuses]}
+                                      "statuses": [s["status"] for s in statuses],
+                                      "sources": [s["source"] for s in statuses],
+                                      "simulated": any(s["simulated"] for s in statuses)}
 
     def tools(state):
         """Run the tool calls of the last LLM reply, count them and collect the evidence."""
@@ -397,7 +405,9 @@ def build_graph(llm, register, config, checkpointer=None, prompt=None):
             verdict = verify_decision(decision, state, strong_score)
         except ValidationError as exc:
             fields = invalid_fields(exc)
-            verdict = {"verdict": "rework", "outcome": str(decision.get("outcome")),
+            # only the outcome of an invalid decision is kept, its other values are never used
+            decision = {"outcome": str(call["args"].get("outcome"))}
+            verdict = {"verdict": "rework", "outcome": decision["outcome"],
                        "message": f"The arguments {fields} of submit_decision are missing or have "
                        "the wrong type. Submit the decision again.", "notes": []}
         reworks = state.get("reworks_used", 0)
@@ -502,6 +512,9 @@ def build_graph(llm, register, config, checkpointer=None, prompt=None):
             outcome = "TECHNICAL_ERROR"
             rationale = (f"The turn stopped in a controlled way ({stop}). "
                          "Nothing is concluded about the company.")
+            # a proposal before the stop was not accepted, so its text does not reach the result
+            answer = None
+            uncertainties = []
         company, evidence = None, []
         chosen = decision.get("company_id")
         if outcome == "MATCH" and chosen and chosen in records:

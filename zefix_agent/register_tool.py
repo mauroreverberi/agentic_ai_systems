@@ -246,6 +246,14 @@ def parse_record(company_id, rows):
     return record
 
 
+# the columns of each operation, a real answer is only cached and stored if it has them
+HIT_COLUMNS = ["company", "name", "locality"]
+COLUMNS = {"lookup_uid": HIT_COLUMNS, "exact_name": HIT_COLUMNS, "text_search": HIT_COLUMNS,
+           "scan_legal_names": HIT_COLUMNS, "count_companies": ["n"],
+           "company_record": ["p", "o", "p2", "o2"], "legal_form_label": ["label", "lang"],
+           "municipality_label": ["label", "lang"]}
+
+
 class RegisterTool:
     """Prepared queries on the Zefix graph, with timeouts, retries, rate limit and snapshots."""
 
@@ -376,6 +384,12 @@ class RegisterTool:
         result = {"status": "ok", "body": answer["body"], "retrieved_at": retrieved_at,
                   "source": source,
                   "attempts": attempt, "simulated": simulated, "seconds": round(seconds, 3)}
+        if not fault and not stored and op in COLUMNS:
+            try:
+                parse_csv(answer["body"], COLUMNS[op])
+            except (ValueError, csv.Error) as exc:
+                # an answer with status 200 but without the expected columns is never stored
+                return error("malformed_response", str(exc)[:200], attempt, simulated)
         if not fault:
             cached = dict(result)
             cached["simulated"] = False

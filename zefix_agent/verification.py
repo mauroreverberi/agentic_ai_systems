@@ -142,24 +142,39 @@ def compare_with_request(request, record):
     return comparison
 
 
-def same_name_competitors(request, chosen_id, candidates, strong_score):
-    """Return the other seen companies that fit the requested name as well as the chosen one."""
+def candidate_score(requested, company_id, candidate, records):
+    """Return the name score of a seen company, with all its names if its record was fetched."""
+    record = (records or {}).get(company_id)
+    if record:
+        return best_name_score(requested, record)
+    return name_score(requested, candidate["legal_name"])
+
+
+def same_name_competitors(request, chosen_id, candidates, strong_score, records=None):
+    """Return the other seen companies that fit the request as well as the chosen one."""
     if not request.get("name"):
         return []
+    records = records or {}
     chosen_score = 0.0
     if chosen_id in candidates:
-        chosen_score = name_score(request["name"], candidates[chosen_id]["legal_name"])
+        chosen_score = candidate_score(request["name"], chosen_id, candidates[chosen_id], records)
     competitors = []
     for company_id, candidate in candidates.items():
         if company_id == chosen_id:
             continue
-        score = name_score(request["name"], candidate["legal_name"])
+        score = candidate_score(request["name"], company_id, candidate, records)
         if score < max(strong_score, chosen_score):
             continue
-        # a place in the request separates companies with the same name
-        wanted = request.get("locality")
-        if wanted and not locality_matches(wanted, candidate.get("locality")):
-            continue
+        record = records.get(company_id)
+        if record:
+            # a place or an address in the request separates a company whose record was fetched
+            if find_contradictions({"locality": request.get("locality"),
+                                    "address": request.get("address")}, record):
+                continue
+        else:
+            wanted = request.get("locality")
+            if wanted and not locality_matches(wanted, candidate.get("locality")):
+                continue
         competitors.append(company_id)
     return competitors
 
@@ -253,7 +268,8 @@ def verify_match(decision, request, records, candidates, searches, strong_score,
         return _verdict("override", "AMBIGUOUS", "The request contradicts the register record.",
                         contradictions)
     if request.get("uid"):
-        return _verify_uid_match(request, record, searches, strong_score, uid_entries or {})
+        return _verify_uid_match(request, record, searches, strong_score, uid_entries or {},
+                                 records)
     score = best_name_score(request["name"], record)
     if score < strong_score:
         return _verdict("override", "AMBIGUOUS",
@@ -267,7 +283,7 @@ def verify_match(decision, request, records, candidates, searches, strong_score,
                         "so the user has to confirm it.",
                         [f"{request['name']} and {record['legal_name']} can be two different "
                          "companies with similar names."])
-    competitors = same_name_competitors(request, company_id, candidates, strong_score)
+    competitors = same_name_competitors(request, company_id, candidates, strong_score, records)
     if competitors:
         return _verdict("override", "AMBIGUOUS",
                         f"Other seen companies fit the request as well: {competitors}.",
@@ -282,10 +298,11 @@ def verify_match(decision, request, records, candidates, searches, strong_score,
                     f"Name score {score}, no contradiction, no competing company seen.", notes)
 
 
-def _verify_uid_match(request, record, searches, strong_score, uid_entries):
+def _verify_uid_match(request, record, searches, strong_score, uid_entries, records):
     """Check a proposed MATCH for a request with a UID."""
     if record.get("uid") != request["uid"]:
         return _verdict("override", "AMBIGUOUS", "The record has another UID than the request.")
+    chosen_id = record.get("company_id")
     if request.get("name") and best_name_score(request["name"], record) < strong_score:
         return _verdict("override", "AMBIGUOUS",
                         "The UID exists, but its register name does not fit the requested name.",
@@ -301,6 +318,23 @@ def _verify_uid_match(request, record, searches, strong_score, uid_entries):
                         "so the UID alone does not select one.",
                         ["The register holds more than one entry with this UID, for example for a "
                          "company with two seats."])
+    if entries > 1:
+        # the place or the address must rule out every other entry with this UID
+        others = [company_id for company_id in uid_entry_ids(request["uid"], uid_entries)
+                  if company_id != chosen_id]
+        missing = [company_id for company_id in others if company_id not in records]
+        if missing:
+            return _verdict("rework", "MATCH",
+                            f"This UID stands on {entries} register entries. Fetch {missing} "
+                            "to check that the place or the address separates them.")
+        detail = {"locality": request.get("locality"), "address": request.get("address")}
+        fitting = [company_id for company_id in others
+                   if not find_contradictions(detail, records[company_id])]
+        if fitting:
+            return _verdict("override", "AMBIGUOUS",
+                            f"The place or the address fits other entries of this UID as well: "
+                            f"{fitting}.",
+                            ["The given detail does not select one entry of this UID."])
     return _verdict("accept", "MATCH", "The UID is equal and nothing contradicts the record.")
 
 
@@ -323,25 +357,40 @@ def uid_lookup_entries(request, searches, uid_entries):
     counts = [search["hits"] or 0 for search in searches
               if search["op"] == "lookup_uid" and search["status"] == "ok"
               and (search.get("params") or {}).get("uid") == uid]
-    # a follow-up makes no new search, so the count stored with the request also counts
+    # a follow-up makes no new search, so the entries stored with the request also count
     if uid in uid_entries:
-        counts.append(uid_entries[uid])
+        counts.append(len(uid_entry_ids(uid, uid_entries)))
     if not counts:
         return None
     return max(counts)
 
 
-def fuzzy_step_missing(request, candidates, searches, strong_score):
+def uid_entry_ids(uid, uid_entries):
+    """Return the company ids that the lookup of one UID returned."""
+    entries = uid_entries.get(uid) or []
+    if isinstance(entries, int):
+        # a count without ids, as in hand-written test states
+        return [None] * entries
+    return list(entries)
+
+
+def strong_candidates(request, candidates, records, strong_score):
+    """Return the seen companies whose legal name or translated names fit the requested name."""
+    return [company_id for company_id, candidate in candidates.items()
+            if candidate_score(request["name"], company_id, candidate, records) >= strong_score]
+
+
+def fuzzy_step_missing(request, candidates, searches, strong_score, records=None):
     """Return True if a name was given, no seen company fits it and no fuzzy search completed."""
     if not request.get("name"):
         return False
-    names = [candidate["legal_name"] for candidate in candidates.values()]
-    if any(name_score(request["name"], name) >= strong_score for name in names):
+    if strong_candidates(request, candidates, records, strong_score):
         return False
     return not any(is_fuzzy_search(search) for search in searches)
 
 
-def verify_no_match(request, candidates, searches, strong_score, uid_entries=None):
+def verify_no_match(request, candidates, searches, strong_score, uid_entries=None,
+                    records=None):
     """Check a proposed NO_MATCH, a failed search or a skipped scan is not an empty register."""
     ok, failed = _searches_ok(searches)
     if failed and not ok:
@@ -363,8 +412,7 @@ def verify_no_match(request, candidates, searches, strong_score, uid_entries=Non
                             "entries, so NO_MATCH does not fit. Fetch them and decide MATCH or "
                             "AMBIGUOUS.")
     if request.get("name"):
-        strong = [company_id for company_id, candidate in candidates.items()
-                  if name_score(request["name"], candidate["legal_name"]) >= strong_score]
+        strong = strong_candidates(request, candidates, records, strong_score)
         if strong:
             return _verdict("rework", "NO_MATCH",
                             f"Seen companies fit the name: {strong}. "
@@ -384,7 +432,7 @@ def verify_no_match(request, candidates, searches, strong_score, uid_entries=Non
             return _verdict("rework", "NO_MATCH",
                             "The scan reached the row limit, so companies may be missing. Scan "
                             "again with a more specific part of the name.")
-        if fuzzy_step_missing(request, candidates, searches, strong_score):
+        if fuzzy_step_missing(request, candidates, searches, strong_score, records):
             if any(asked_for_fuzzy(search) for search in failed):
                 # a fuzzy search that failed is not a completed search
                 return _verdict("override", "TECHNICAL_ERROR",
@@ -413,12 +461,12 @@ def verify_decision(decision, state, strong_score):
                             state.get("uid_entries"))
     if outcome == "NO_MATCH":
         return verify_no_match(request, candidates, searches, strong_score,
-                               state.get("uid_entries"))
+                               state.get("uid_entries"), records)
     if outcome == "AMBIGUOUS":
         if not candidates:
             return _verdict("rework", "AMBIGUOUS",
                             "AMBIGUOUS needs seen candidates. Search first or decide NO_MATCH.")
-        if fuzzy_step_missing(request, candidates, searches, strong_score):
+        if fuzzy_step_missing(request, candidates, searches, strong_score, records):
             return _verdict("rework", "AMBIGUOUS",
                             "No seen company fits the name. "
                             "Run text_search with fuzzy=true before you decide.")
