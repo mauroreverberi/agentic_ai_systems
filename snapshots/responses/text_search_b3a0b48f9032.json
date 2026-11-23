@@ -1,0 +1,16 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "gmbh",
+   "schmid"
+  ],
+  "locality": null,
+  "fuzzy": true,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(schmid~ AND gmbh~)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-23T07:38:28+00:00",
+ "response_seconds": 0.106,
+ "body": "company,name,locality\r\nhttps://register.ld.admin.ch/zefix/company/1337570,Schmid GmbH,Oberhofen am Thunersee\r\nhttps://register.ld.admin.ch/zefix/company/391233,Schmid + Bossard GmbH,Oberentfelden\r\nhttps://register.ld.admin.ch/zefix/company/414214,Rolf Schmid GmbH,Hünenberg\r\nhttps://register.ld.admin.ch/zefix/company/434581,Schmid Agrotech GmbH,Märwil\r\nhttps://register.ld.admin.ch/zefix/company/458422,HANNES SCHMID GmbH,Dübendorf\r\nhttps://register.ld.admin.ch/zefix/company/509840,Oestreich & Schmid GmbH,St. Gallen\r\nhttps://register.ld.admin.ch/zefix/company/514900,Schmid Landschaften GmbH,Zürich\r\nhttps://register.ld.admin.ch/zefix/company/1268838,Stallberatung Schmid GmbH,Scherz\r\nhttps://register.ld.admin.ch/zefix/company/1276896,Malergeschäft Schmid GmbH,Goldach\r\nhttps://register.ld.admin.ch/zefix/company/1318197,Schmid Engineering GmbH,Bubikon\r\nhttps://register.ld.admin.ch/zefix/company/1147680,Regina Schmid GmbH,Fehraltorf\r\nhttps://register.ld.admin.ch/zefix/company/1168278,Hirschenmetzg Schmid GmbH,Weinfelden\r\nhttps://register.ld.admin.ch/zefix/company/1190172,Schmid Baumanagement GmbH,Urdorf\r\nhttps://register.ld.admin.ch/zefix/company/1227994,SCHMID SSB GmbH,Mühlethurnen\r\nhttps://register.ld.admin.ch/zefix/company/1235172,Dieter Schmid GmbH,Schaffhausen\r\nhttps://register.ld.admin.ch/zefix/company/1235964,Dani Schmid GmbH,Faulensee\r\nhttps://register.ld.admin.ch/zefix/company/1248834,Schmid ComConsult GmbH,Lindau\r\nhttps://register.ld.admin.ch/zefix/company/1369407,Jowa Schmid GmbH,Ausserberg\r\nhttps://register.ld.admin.ch/zefix/company/1375875,Maler Schmid GmbH,Weggis\r\nhttps://register.ld.admin.ch/zefix/company/1378310,Schmid Dienstleistungen GmbH,Märwil\r\nhttps://register.ld.admin.ch/zefix/company/1381053,SCHMID & ERNST gmbh,Malters\r\nhttps://register.ld.admin.ch/zefix/company/1381268,Schmid Werk GmbH,Oberbüren\r\nhttps://register.ld.admin.ch/zefix/company/1397844,ESK Schmid GmbH,Riedikon\r\nhttps://register.ld.admin.ch/zefix/company/1414033,Schmid Stirling GmbH,Thörishaus\r\nhttps://register.ld.admin.ch/zefix/company/1430382,Schmid Autoservice GmbH,Wetzikon ZH\r\n"
+}

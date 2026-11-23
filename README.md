@@ -25,7 +25,7 @@ This project connects to my earlier capstone projects, which all work with compa
 - Stored real register responses (`snapshots/responses/`).
 - The 38 evaluation cases with their expected results (`evaluation/cases.json`).
 - The logs of my real runs (`evaluation/results/` and `evaluation/run_history.json`).
-- 48 deterministic tests that need neither a key nor the network (`tests/`).
+- 54 deterministic tests that need neither a key nor the network (`tests/`).
 - The snapshot recorder (`scripts/record_snapshots.py`).
 - The script that runs the evaluation cases with the real LLM (`scripts/run_evaluation.py`).
 - The architecture diagram (`architecture_diagram.png`).
@@ -36,20 +36,18 @@ This project connects to my earlier capstone projects, which all work with compa
 Zefix, Central Business Name Index, published by the Federal Commercial Registry Office on opendata.swiss:
 https://opendata.swiss/en/dataset/zefix-zentraler-firmenindex
 
-I query it only through the public LINDAS SPARQL endpoint `https://lindas.admin.ch/query` and the graph `https://lindas.admin.ch/foj/zefix`. The dataset description says that it holds daily updated core data of the active legal entities in the commercial register. In my count on 2026-11-19 the graph had 797,449 organizations. Section 4 of the notebook shows this count. There is no status field and no date of registration in the data, so the agent makes no statement about status.
+I query it only through the public LINDAS SPARQL endpoint `https://lindas.admin.ch/query` and the graph `https://lindas.admin.ch/foj/zefix`. The dataset description says that it holds daily updated core data of the active legal entities in the commercial register. In my count on 2026-11-23 the graph had 790,074 organizations. Section 4 of the notebook shows this count. There is no status field and no date of registration in the data, so the agent makes no statement about status.
 
 I did not use this source in my earlier capstone projects. Project 1 used GLEIF data, Project 2 used a file of register messages from Basel-Landschaft, and Project 5 used company names from the UK register.
 
 No data file has to be downloaded. The stored register responses in `snapshots/responses/` are included. They are public register data, and some of them hold the name and address of a sole proprietor, so I stored only the responses of my data probes and of my runs.
 
 ## Main Results
-In the execution of the notebook on 2026-11-20 the agent passed 6 of 6 development cases, 20 of 22 final cases and 10 of 10 holdout cases, with `gpt-6-luna`. The two failures are F3 and F4, the English and the German name of the Swiss Federal Railways. In both cases the agent found the railway and its Cargo company and asked which one I meant, and I had expected a MATCH.
+In the execution of the notebook on 2026-11-23 the agent passed 6 of 6 development cases, 20 of 22 final cases and 9 of 10 holdout cases, with `gpt-6-luna`. Two failures are F3 and F4, the English and the German name of the Swiss Federal Railways. In both cases the agent found the railway and its Cargo company and asked which one I meant, and I had expected a MATCH. The third failure is H3, where the agent searched only for the spelling Mueller from the request and ended with NO_MATCH, although two entries with the spelling Müller exist.
 
-The evaluation script had run the same 38 cases three times before that. Its third run used the same agent code a few minutes earlier. All 38 cases ended with the same outcome as in the notebook, and 31 of 38 with the same tool sequence. In the notebook and this script run together the LLM proposed MATCH 30 times and the check accepted all 30, and no result of a stored run named another company than expected. Section 8 of the notebook describes the two earlier script runs and what I changed between them.
+Before the notebook, the evaluation script ran the same 38 cases three times with the same code and prompt, and the runs passed 36, 36 and 37 cases. 35 of 38 cases ended with the same outcome in all four runs. F3, F17 and H3 changed, so the LLM does not repeat itself even with temperature 0 and a seed. In the four runs together the LLM proposed MATCH 62 times, the check accepted all 62, and no result named another company than expected.
 
-After these runs I made two rules of the check for NO_MATCH stricter. A failed fuzzy search no longer counts as a search, and a UID that the register holds cannot end as NO_MATCH. One of the tests reads the stored logs and shows that neither rule would have changed a stored result.
-
-These are hand-picked cases, and in 7 of them more than one outcome counts as correct. So the numbers show behavior in difficult situations and no hit rate for the register. A typing error can still end in NO_MATCH for a company that exists (case F16), while the same request ended as AMBIGUOUS with the right company as the only candidate in Run 5 of the notebook. In case F17 an instruction in the name field steered the search, but it did not lead to a MATCH. Section 10 of the notebook lists the limitations and risks. All logs are in `evaluation/results/`.
+These are hand-picked cases, and in 7 of them more than one outcome counts as correct. So the numbers show behavior in difficult situations and no hit rate for the register. A typing error ended in NO_MATCH for a company that exists (case F16) in all four runs. In case F17 an instruction in the name field steered the search in all four runs, but it did not lead to a MATCH. Section 8 of the notebook compares the runs, and section 10 lists the limitations and risks. All logs are in `evaluation/results/`.
 
 ## How to Run the Project
 1. Clone this repository.
@@ -74,9 +72,9 @@ These are hand-picked cases, and in 7 of them more than one outcome counts as co
 6. Open `agentic_system.ipynb` and run all cells
    (Kernel > Restart Kernel and Run All Cells).
 
-A full run needs internet access to the LLM endpoint. My last full run took about 6 minutes and used 456,366 input and 13,810 output tokens in the evaluation, about $0.05 at the list price. The register is only asked when the LLM chooses a query that has no stored response, and in section 9, which is a live run.
+A full run needs internet access to the LLM endpoint. My last full run took about 6 minutes and used 465,756 input and 13,482 output tokens in the evaluation, about $0.05 at the list price. The register is only asked when the LLM chooses a query that has no stored response, and in section 9, which is a live run.
 
-The notebook, this README and the report describe my stored execution of 2026-11-20. A new execution overwrites `evaluation/results/notebook_run.json`, and the LLM can take another path than in the stored execution, so its numbers can differ.
+The notebook, this README and the report describe my stored execution of 2026-11-23. A new execution overwrites `evaluation/results/notebook_run.json`, and the LLM can take another path than in the stored execution, so its numbers can differ.
 
 The deterministic tests run without a key and without network:
 ```
@@ -111,9 +109,9 @@ I use `gpt-6-luna` through the Chat Completions API with `reasoning_effort` set 
 The register tool sends the User-Agent `udacity-capstone-project6/0.1`, waits at least 1 second between its requests, makes at most 3 attempts with exponential backoff and caches results. The scan over all legal names reads a large part of the dataset, which the LINDAS guidance asks to avoid, so I limit it to 2 scans per turn and 25 rows. The report explains this choice.
 
 ## Reproducibility
-Stored register responses do not make the agent reproducible on their own. The decisions come from an LLM, so every run needs the key and the LLM endpoint. I set the temperature to 0 and send the seed 42, but this does not guarantee identical answers, and the outcomes of F3, F16 and H3 changed between the three script runs. A rerun can also choose a search word that has no snapshot. In `record` mode the tool then asks the real endpoint and stores the answer, and in `snapshot` mode this shows up as a `snapshot_miss` in the results.
+Stored register responses do not make the agent reproducible on their own. The decisions come from an LLM, so every run needs the key and the LLM endpoint. I set the temperature to 0 and send the seed 42, but this does not guarantee identical answers, and the outcomes of F3, F17 and H3 changed between four runs with the same code. A rerun can also choose a search word that has no snapshot. In `record` mode the tool then asks the real endpoint and stores the answer, and in `snapshot` mode this shows up as a `snapshot_miss` in the results.
 
-The live register can differ from the snapshots, because the data is updated daily. Of the 215 stored responses, 135 are from 2026-11-13, 61 from 2026-11-19 and 19 from 2026-11-20.
+The live register can differ from the snapshots, because the data is updated daily. All 215 stored responses are from 2026-11-23. I recorded them again before the stored runs, and one entry of case F13 had disappeared from the register since my development runs.
 
 ## Dependencies
 `requirements.txt` was created inside the project's own virtual environment with:

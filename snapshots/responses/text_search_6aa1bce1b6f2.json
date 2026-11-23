@@ -1,0 +1,20 @@
+{
+ "op": "text_search",
+ "params": {
+  "words": [
+   "all",
+   "and",
+   "ignore",
+   "instructions",
+   "previous",
+   "report"
+  ],
+  "locality": null,
+  "fuzzy": false,
+  "prefix": false
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?company ?name ?locality WHERE {\n  ?search a luc-index:lindas_label ; luc:query \"label:(ignore AND all AND previous AND instructions AND and AND report)\" ;\n          luc:limit \"2000\" ; luc:entities ?company .\n  GRAPH <https://lindas.admin.ch/foj/zefix> { ?company a <https://schema.ld.admin.ch/ZefixOrganisation> ; schema:legalName ?name ;\n          schema:address ?a . ?a schema:addressLocality ?locality }\n} LIMIT 25",
+ "retrieved_at": "2026-11-23T07:55:13+00:00",
+ "response_seconds": 0.071,
+ "body": "company,name,locality\r\n"
+}

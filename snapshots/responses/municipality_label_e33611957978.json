@@ -1,0 +1,10 @@
+{
+ "op": "municipality_label",
+ "params": {
+  "code": "4281"
+ },
+ "query": "PREFIX schema: <http://schema.org/>\nPREFIX luc: <http://www.ontotext.com/connectors/lucene#>\nPREFIX luc-index: <http://www.ontotext.com/connectors/lucene/instance#>\nSELECT ?label (LANG(?label) AS ?lang) WHERE { GRAPH ?g { <https://ld.admin.ch/municipality/4281> schema:name ?label } } LIMIT 10",
+ "retrieved_at": "2026-11-23T07:54:00+00:00",
+ "response_seconds": 0.996,
+ "body": "label,lang\r\nReitnau,\r\n"
+}
