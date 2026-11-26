@@ -105,7 +105,7 @@ Each register tool sends the User-Agent `udacity-capstone-project6/0.1`, waits a
 ## Reproducibility
 Stored register responses do not make the agent reproducible on their own. The decisions come from an LLM, so every run needs the key and the LLM endpoint. I set the temperature to 0 and send the seed 42, but this does not guarantee identical answers, and the outcomes of F3, F4 and H3 changed between four runs with the same code. A rerun can also choose a search word that has no snapshot. In `record` mode the tool then asks the real endpoint and stores the answer, and in `snapshot` mode this shows up as a `snapshot_miss` in the results.
 
-The live register can differ from the snapshots, because the data is updated daily. All 223 stored responses are from 2026-11-23. I recorded them again before the stored runs, and the three script runs added 8 of them. One entry of case F13 that my development runs had found was no longer returned on that day.
+The live register can differ from the snapshots, because the data is updated daily. All 215 stored responses are from 2026-11-23. I recorded them again before the stored runs, and the three script runs added 8 of them. One entry of case F13 that my development runs had found was no longer returned on that day.
 
 ## Dependencies
 `requirements.txt` was created inside the project's own virtual environment with:

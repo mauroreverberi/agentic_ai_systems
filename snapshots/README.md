@@ -2,20 +2,20 @@
 
 These files hold real responses of the public LINDAS SPARQL endpoint `https://lindas.admin.ch/query`, graph `https://lindas.admin.ch/foj/zefix` for the company data. Nothing here is synthetic or edited.
 
-Files: 223. First retrieval (UTC): 2026-11-23T07:20:05+00:00. Last retrieval (UTC): 2026-11-23T10:42:46+00:00. All of them are from 2026-11-23.
+Files: 215. First retrieval (UTC): 2026-11-23T07:20:05+00:00. Last retrieval (UTC): 2026-11-23T10:42:46+00:00. All of them are from 2026-11-23.
 
 Each file has the operation, its parameters, the exact SPARQL text, the retrieval time, the measured response time and the response body as sent by the endpoint.
 
 | Operation | Files |
 |---|---|
-| `company_record` | 43 |
+| `company_record` | 41 |
 | `count_companies` | 1 |
 | `exact_name` | 35 |
 | `legal_form_label` | 7 |
 | `lookup_uid` | 4 |
-| `municipality_label` | 31 |
+| `municipality_label` | 29 |
 | `scan_legal_names` | 27 |
-| `text_search` | 75 |
+| `text_search` | 71 |
 
 The responses are public register data. Some of them hold the name and address of a sole proprietor, so this folder only has the responses of my data probes, of the companies in my evaluation cases and of my runs.
 
