@@ -32,7 +32,7 @@ No data file has to be downloaded. The stored register responses in `snapshots/r
 ## Main Results
 In the execution of the notebook on 2026-11-23 the agent passed 6 of 6 development cases, 22 of 22 final cases and 9 of 10 holdout cases, with `gpt-6-luna`. The failure is H3, where the agent searched only for the spelling Mueller from the request and ended with NO_MATCH, although two entries with the spelling Müller exist.
 
-Before the notebook, the evaluation script ran the same 38 cases three times with the same code and prompt, and the runs passed 37, 35 and 37 cases. F3, F4 and H3 changed their outcome between the four runs, so the behavior is not fully repeatable. No result named another company than expected.
+Before the notebook, the evaluation script ran the same 38 cases three times with the same code and prompt, and the runs passed 37, 35 and 37 cases. F3, F4 and H3 changed their outcome between the four runs, so the behavior is not fully repeatable. No MATCH named another company than I expected.
 
 These are hand-picked cases, so the numbers show behavior in difficult situations and no hit rate for the register. A typing error ended in NO_MATCH for a company that exists (case F16) in all four runs, and this case still counts as a pass. The notebook compares the runs, and the report describes the limitations and risks. The evaluation logs are in `evaluation/results/`. Some cases simulate failures of the register, and each affected tool result in the log carries `simulated: true`.
 
@@ -59,7 +59,7 @@ These are hand-picked cases, so the numbers show behavior in difficult situation
 6. Open `agentic_system.ipynb` and run all cells
    (Kernel > Restart Kernel and Run All Cells).
 
-A full run needs a key and internet access to the LLM endpoint. My last full run took about 6 minutes and cost about $0.05 at the standard rates. I used `gpt-6-luna` with my own OpenAI key on the OpenAI default endpoint. I did not test the course workspace, so I cannot say whether it offers this model. The comment in `.env.example` shows how to set another endpoint with `OPENAI_BASE_URL`, and the variable `OPENAI_MODEL` sets another model name, but a different model may need other settings in `config/agent_config.json`. If the LLM call fails, the cell in section 6 of the notebook stops with a message.
+A full run needs a key and internet access to the LLM endpoint. My last full run took about 6 minutes and cost about $0.05 at the list price. I used `gpt-6-luna` with my own OpenAI key on the OpenAI default endpoint. I did not test the course workspace, so I cannot say whether it offers this model. The comment in `.env.example` shows how to set another endpoint with `OPENAI_BASE_URL`, and the variable `OPENAI_MODEL` sets another model name, but a different model may need other settings in `config/agent_config.json`. If the LLM call fails, the cell in section 6 of the notebook stops with a message.
 
 The register answers come from stored real responses. The variable `ZEFIX_MODE` sets this behavior, and the notebook uses `record` unless the variable is set:
 
